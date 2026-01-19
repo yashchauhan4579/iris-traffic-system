@@ -1,53 +1,118 @@
+# Iris - Intelligent Traffic Management System
 
-## Task List
+Iris is a comprehensive, AI-powered traffic management and analytics platform designed to monitor, analyze, and optimize urban traffic flow. It leverages advanced computer vision to provide real-time insights into vehicle classification, license plate recognition, traffic violations, and crowd density.
 
-### 1. Add API to Register Workers
+## 🚀 Key Features
 
-- [ ] Define an endpoint in the master to accept worker registration (e.g., `/register_worker`).
-- [ ] Store and manage worker info (e.g., ID, host, capacity, status) in the master.
-- [ ] Return registration success/duplicate/error responses.
+### 1. **Vehicle Classification & Counting (VCC)**
+- **Real-time Counting**: Accurate counting of vehicles across multiple categories (2-Wheeler, 4-Wheeler, Bus, Truck, Auto, HMV).
+- **Analytics Dashboard**: Visualizations for hourly/weekly distribution, peak traffic hours, and vehicle composition.
+- **Detailed Reports**: Generate PDF and Excel reports with granular data (Timestamp, Confidence, Direction, Lane, etc.).
 
-### 2. Create a Worker Client That Auto-Registers to the Master
+### 2. **Automatic Number Plate Recognition (ANPR)**
+- **Plate Detection**: High-accuracy detection and reading of license plates.
+- **Vehicle Identification**: Identifies vehicle make, model, and color along with the plate.
+- **Watchlist Alerts**: Real-time alerts for blacklisted or suspicious vehicles [Planned].
 
-- [ ] Implement a worker client script/service.
-- [ ] On startup, the worker should contact the master’s registration API and register itself (with necessary metadata).
-- [ ] Handle retry and error cases (with exponential backoff and logging).
-- [ ] Worker should periodically renew its registration/heartbeat.
+### 3. **Traffic Violation Detection**
+- **Automated Enforcement**: Detects various violations such as:
+    - Speeding
+    - Red Light Violation (RLVD)
+    - No Helmet / No Seatbelt
+    - Wrong Side Driving
+- **Evidence generation**: Captures snapshots and video clips for challan generation.
 
-### 3. Add UI to See Workers
+### 4. **Crowd Monitoring**
+- **Density Analysis**: Real-time crowd density estimation and heatmap generation.
+- **Safety Alerts**: Alerts for overcrowding or abnormal gathering patterns.
 
-- [ ] Create a UI page to list all registered workers.
-- [ ] Display details: Worker ID, status, last seen, workload, etc.
-- [ ] Support basic filtering/search.
+### 5. **Reporting & Data Export**
+- **PDF Reports**: Professional-grade traffic analysis reports with charts and summary statistics.
+- **Excel Export**: Download raw event data (up to 30,000 records) for offline analysis.
 
-### 4. Add UI to Assign Load to Worker
+## 🛠️ Tech Stack
 
-- [ ] UI to choose either round-robin assignment or to select a specific worker for camera/task assignment.
-- [ ] API on the master for assigning load to a specific worker.
-- [ ] UI options to trigger assignment and show current assignments.
-- [ ] Visual feedback for assignment status and errors.
+### Frontend
+- **Framework**: [React](https://react.dev/) with [TypeScript](https://www.typescriptlang.org/)
+- **Build Tool**: [Vite](https://vitejs.dev/)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/) & [shadcn/ui](https://ui.shadcn.com/)
+- **Charts**: [Recharts](https://recharts.org/)
+- **PDF Generation**: [@react-pdf/renderer](https://react-pdf.org/)
+- **Maps**: [Leaflet](https://leafletjs.com/) / React-Leaflet
 
-### Optional Enhancements
+### Backend
+- **Language**: [Go (Golang)](https://go.dev/)
+- **Framework**: [Gin Web Framework](https://gin-gonic.com/)
+- **Database**: PostgreSQL with PostGIS extension (via GORM)
+- **Containerization**: Docker & Docker Compose
 
-- [ ] Handle worker removal/unregistration and error handling in the master and UI.
-- [ ] Secure API and worker authentication.
+## 📦 Project Structure
 
----
+```bash
+iris/
+├── backend/                # Go Backend API
+│   ├── cmd/                # Entry points
+│   ├── handlers/           # HTTP Request Handlers (VCC, ANPR, etc.)
+│   ├── models/             # Database Models (GORM)
+│   ├── services/           # Business Logic Services
+│   └── Dockerfile          # Backend Docker Config
+├── client/                 # React Frontend Application
+│   ├── src/
+│   │   ├── components/     # UI Components (Dashboards, Reports)
+│   │   ├── contexts/       # React Context Providers
+│   │   └── lib/            # Utilities & API Client
+│   └── vite.config.ts      # Vite Configuration
+├── irisv3/                 # Legacy/Alternative Version
+├── magicbox-node/          # Edge Compute Node Implementation
+└── media/                  # Media Resources
+```
 
-## VCC Analytics Features (Implemented)
+## 🚀 Getting Started
 
-### 1. Per-Camera Filtering
-- **Functionality**: Users can filter VCC statistics by selecting a specific camera from a dropdown or "All Cameras" for aggregated data.
-- **Top Devices**: Clicking on a device in the "Top Devices" list automatically filters the dashboard by that camera.
+### Prerequisites
+- [Docker](https://www.docker.com/) & Docker Compose
+- [Node.js](https://nodejs.org/) (v18+)
+- [Go](https://go.dev/) (v1.21+)
 
-### 2. Advanced Date-Time Filtering
-- **Flexible Picker**: Custom date-time range picker with calendar visualization.
-- **Minute-Level Granularity**: Support for minute-level data aggregation (1m, 2m, 5m presets) for high-precision validation.
-- **Visual Range**: Calendars visually highlight the selected date range across start and end views for better usability.
+### Running with Docker (Recommended)
 
-### 3. Data Visualization
-- **Normalized Display**: Dashboard consistently renders stats (counts, classifications, distributions) regardless of whether single-camera or multi-camera view is selected.
-- **Real-Time Integration**: Normalized data flow ensures real-time updates respect the selected filters.
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/Nikhilkaushik23/ATCC.git
+    cd iris
+    ```
 
+2.  **Start the Backend & Database:**
+    ```bash
+    cd backend
+    docker compose up -d --build
+    ```
+    The backend API will be available at `http://localhost:3001`.
 
+3.  **Start the Frontend (Development Mode):**
+    ```bash
+    cd ../client
+    npm install
+    npm run dev
+    ```
+    The frontend will be available at `http://localhost:5173`.
 
+### Running Manually
+
+1.  **Backend:**
+    Ensure PostgreSQL is running. Set environment variables in `.env` (or export them).
+    ```bash
+    cd backend
+    go mod download
+    go run main.go
+    ```
+
+2.  **Frontend:**
+    ```bash
+    cd client
+    npm install
+    npm run dev
+    ```
+
+## 📄 License
+[Provide License Information Here]
