@@ -118,5 +118,12 @@ iris/
     *   **Frontend Port**: 8443
     *   **Media Server Proxy**: Requests to `/media` are proxied to `http://localhost:8888`.
 
+### Production Deployment (Nginx)
+The application can be served via Nginx as a reverse proxy on port 80.
+1.  Ensure Nginx is installed and running (`sudo systemctl status nginx`).
+2.  The configuration is located at `/etc/nginx/sites-available/iris`.
+3.  It proxies requests from `port 80` to the frontend running on `http://127.0.0.1:8443`.
+4.  Access the dashboard at `http://<server-ip>` or `http://localhost`.
+
 ## 📄 License
 [Provide License Information Here]
