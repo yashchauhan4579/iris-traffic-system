@@ -95,7 +95,7 @@ iris/
     npm install
     npm run dev
     ```
-    The frontend will be available at `http://localhost:5173`.
+    The frontend will be available at `http://localhost:8443` (Note: Port 8443 is configured in `vite.config.ts`).
 
 ### Running Manually
 
@@ -106,6 +106,8 @@ iris/
     go mod download
     go run main.go
     ```
+    *   **API Port**: 3001
+    *   **NATS Port**: 4233 (Embedded)
 
 2.  **Frontend:**
     ```bash
@@ -113,6 +115,8 @@ iris/
     npm install
     npm run dev
     ```
+    *   **Frontend Port**: 8443
+    *   **Media Server Proxy**: Requests to `/media` are proxied to `http://localhost:8888`.
 
 ## 📄 License
 [Provide License Information Here]
