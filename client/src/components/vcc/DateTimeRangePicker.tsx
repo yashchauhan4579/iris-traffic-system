@@ -201,7 +201,6 @@ export function DateTimeRangeContent({ value, onChange, onCancel, onApply, showF
                     <div className="text-xs font-medium text-muted-foreground">Start Date & Time</div>
                     <div className="border rounded-lg overflow-hidden">
                         <Calendar
-                            mode="single"
                             selected={tempStart}
                             onSelect={handleStartDateSelect}
                         />
@@ -221,7 +220,6 @@ export function DateTimeRangeContent({ value, onChange, onCancel, onApply, showF
                     <div className="text-xs font-medium text-muted-foreground">End Date & Time</div>
                     <div className="border rounded-lg overflow-hidden">
                         <Calendar
-                            mode="single"
                             selected={tempEnd}
                             onSelect={handleEndDateSelect}
                         />

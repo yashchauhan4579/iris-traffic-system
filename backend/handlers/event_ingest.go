@@ -37,21 +37,25 @@ func normalizeEvent(event *IngestEvent) {
 	event.Timestamp = &now
 }
 
-// ensureDeviceExists creates a device if it doesn't exist
-func ensureDeviceExists(deviceID string, workerID string) error {
+// getOrCreateDevice retrieves a device or creates it if it doesn't exist
+func getOrCreateDevice(deviceID string, workerID string) (*models.Device, error) {
 	var device models.Device
 	result := database.DB.First(&device, "id = ?", deviceID)
 	
 	if result.Error == nil {
-		// Device exists, update last seen if needed
-		return nil
+		return &device, nil
 	}
 	
 	if result.Error != gorm.ErrRecordNotFound {
-		// Some other error occurred
-		return result.Error
+		return nil, result.Error
 	}
 	
+    // Prevent creation of auto-generated IDs (old style)
+    if len(deviceID) >= 9 && deviceID[:9] == "CAMERA_-_" {
+        log.Printf("⚠️ [EVENT_INGEST] Skipping creation of legacy device ID: %s", deviceID)
+        return nil, fmt.Errorf("device %s not found and creation blocked by policy", deviceID)
+    }
+
 	// Device doesn't exist, create it
 	name := "Camera " + deviceID
 	device = models.Device{
@@ -62,12 +66,22 @@ func ensureDeviceExists(deviceID string, workerID string) error {
 		WorkerID: &workerID,
 	}
 	
-	return database.DB.Create(&device).Error
+	if err := database.DB.Create(&device).Error; err != nil {
+        return nil, err
+    }
+    
+    return &device, nil
 }
 
 // IngestEventsRequest - Batch event ingest
 type IngestEventsRequest struct {
 	Events []IngestEvent `json:"events"`
+    // New format support
+    Description string `json:"description"`
+    Endpoint    string `json:"endpoint"`
+    Payload     struct {
+        Events []IngestEvent `json:"events"`
+    } `json:"payload"`
 }
 
 // IngestEvents handles event ingestion from edge workers
@@ -130,9 +144,9 @@ func IngestEvents(c *gin.Context) {
 			} else {
 				log.Printf("❌ [EVENT_INGEST] JSON parse error - IP: %s, WorkerID: %s, Error: %v", 
 					clientIP, workerID, err)
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
 		} else {
 			// Successfully parsed as JSON
 			if contentType == "" {
@@ -140,37 +154,43 @@ func IngestEvents(c *gin.Context) {
 					clientIP, workerID)
 			}
 			
+            // Handle both legacy and new format
+            events := req.Events
+            if len(req.Payload.Events) > 0 {
+                events = req.Payload.Events
+            }
+
 			// Log batch request details
 			eventTypes := make(map[string]int)
-			for _, event := range req.Events {
+			for _, event := range events {
 				eventTypes[event.Type]++
 			}
 			log.Printf("📦 [EVENT_INGEST] Batch request - WorkerID: %s, Total: %d, Types: %v", 
-				workerID, len(req.Events), eventTypes)
+				workerID, len(events), eventTypes)
 		
-		processed := 0
-		for i := range req.Events {
-			// Normalize event (set timestamp to current time)
-			normalizeEvent(&req.Events[i])
-			
-			if err := processEvent(req.Events[i], nil); err != nil {
+			processed := 0
+			for i := range events {
+				// Normalize event (set timestamp to current time)
+				normalizeEvent(&events[i])
+				
+				if err := processEvent(events[i], nil); err != nil {
 					log.Printf("⚠️ [EVENT_INGEST] Failed to process event - WorkerID: %s, EventID: %s, Type: %s, Error: %v", 
-						workerID, req.Events[i].ID, req.Events[i].Type, err)
-				continue
+						workerID, events[i].ID, events[i].Type, err)
+					continue
+				}
+				processed++
 			}
-			processed++
-		}
 		
 			duration := time.Since(startTime)
 			log.Printf("✅ [EVENT_INGEST] Batch processed - WorkerID: %s, Processed: %d/%d, Duration: %v", 
-				workerID, processed, len(req.Events), duration)
+				workerID, processed, len(events), duration)
 			
-		c.JSON(http.StatusOK, gin.H{
-			"status":    "ok",
-			"processed": processed,
-			"total":     len(req.Events),
-		})
-		return
+			c.JSON(http.StatusOK, gin.H{
+				"status":    "ok",
+				"processed": processed,
+				"total":     len(events),
+			})
+			return
 		}
 	}
 
@@ -349,9 +369,16 @@ func IngestEvents(c *gin.Context) {
 // processEvent processes a single event based on type
 func processEvent(event IngestEvent, imageURLs map[string]string) error {
 	// Ensure device exists before processing event
-	if err := ensureDeviceExists(event.DeviceID, event.WorkerID); err != nil {
+	device, err := getOrCreateDevice(event.DeviceID, event.WorkerID)
+	if err != nil {
 		return fmt.Errorf("failed to ensure device exists: %w", err)
 	}
+
+    // Opportunistically update device details if present in event data
+    // This handles cases where metadata is sent with generic events, not just camera_status
+    if event.Data != nil {
+        updateDeviceFromEventData(device, event.Data)
+    }
 	
 	switch event.Type {
 	case "camera_status":
@@ -372,6 +399,46 @@ func processEvent(event IngestEvent, imageURLs map[string]string) error {
 	}
 }
 
+// updateDeviceFromEventData updates device metadata if specific fields are present
+func updateDeviceFromEventData(device *models.Device, data map[string]interface{}) {
+    cameraName, _ := data["camera_name"].(string)
+	location, _ := data["location"].(string)
+    
+    shouldSave := false
+    
+    if cameraName != "" && (device.Name == nil || *device.Name != cameraName) {
+        device.Name = &cameraName
+        shouldSave = true
+    }
+    
+    if location != "" {
+        // Init metadata map if needed
+        var metaMap map[string]interface{}
+        if device.Metadata.Data != nil {
+            if m, ok := device.Metadata.Data.(map[string]interface{}); ok {
+                metaMap = m
+            } else {
+                metaMap = make(map[string]interface{})
+            }
+        } else {
+            metaMap = make(map[string]interface{})
+        }
+        
+        // Check if location is different
+        if curLoc, ok := metaMap["location"].(string); !ok || curLoc != location {
+            metaMap["location"] = location
+            device.Metadata = models.NewJSONB(metaMap)
+            shouldSave = true
+        }
+    }
+    
+    if shouldSave {
+        // Log that we are opportunistic updating
+        log.Printf("ℹ️ [EVENT_INGEST] Updating device metadata from event - ID: %s", device.ID)
+        database.DB.Save(device)
+    }
+}
+
 // processCameraStatusEvent handles camera registration/status events
 func processCameraStatusEvent(event IngestEvent, imageURLs map[string]string) error {
 	data := event.Data
@@ -380,8 +447,9 @@ func processCameraStatusEvent(event IngestEvent, imageURLs map[string]string) er
 	rtspURL, _ := data["rtsp_stream_url"].(string)
 	hlsURL, _ := data["hls_stream_url"].(string)
 	originalRTSP, _ := data["original_rtsp_url"].(string)
-	
-	// Find device
+    
+	// New fields - handled by opportunistic update as well, but we keep explicit logic here for status/URLs
+	// Find device - verified to exist
 	var device models.Device
 	if err := database.DB.First(&device, "id = ?", event.DeviceID).Error; err != nil {
 		return fmt.Errorf("device not found: %w", err)
@@ -405,8 +473,6 @@ func processCameraStatusEvent(event IngestEvent, imageURLs map[string]string) er
 		if m, ok := device.Metadata.Data.(map[string]interface{}); ok {
 			metaMap = m
 		} else {
-			// Should not happen if data is valid JSONB, but safe fallback involves re-marshaling or just resetting
-			// Here we try to coerce
 			metaMap = make(map[string]interface{})
 		}
 	} else {
@@ -419,6 +485,8 @@ func processCameraStatusEvent(event IngestEvent, imageURLs map[string]string) er
 	if originalRTSP != "" {
 		metaMap["original_rtsp_url"] = originalRTSP
 	}
+    // Location is handled by updateDeviceFromEventData, but if camera_status sends it, 
+    // we want to ensure it's set (updateDeviceFromEventData does this too)
 	
 	// Update last seen
 	device.WorkerID = &event.WorkerID

@@ -1,14 +1,16 @@
 import { Card } from '@/components/ui/card';
 import { type VCCStats, type VCCDeviceStats } from '@/lib/api';
-import { Award, Clock, TrendingUp, AlertTriangle } from 'lucide-react';
+import { Award, Clock, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { type CameraOption } from '@/components/vcc/CameraSelector';
 
 interface VCCInsightsProps {
     stats: VCCStats | VCCDeviceStats | null;
     loading?: boolean;
+    cameras?: CameraOption[];
 }
 
-export function VCCInsights({ stats, loading }: VCCInsightsProps) {
+export function VCCInsights({ stats, loading, cameras }: VCCInsightsProps) {
     if (loading || !stats) {
         return null;
     }
@@ -56,16 +58,30 @@ export function VCCInsights({ stats, loading }: VCCInsightsProps) {
         const sorted = [...hours].sort((a, b) => b.count - a.count);
 
         const top3Peak = sorted.slice(0, 3);
-        // For quiet hours, filter out hours with 0 counts if that implies "no data", 
-        // but for "quiet" hours 0 is valid. However, usually we want low non-zero or just bottom.
-        // Let's take bottom 3 from the sorted list (which includes 0s).
-        // Actually, reverse sorted to get quietest.
         const top3Quiet = [...sorted].reverse().slice(0, 3).sort((a, b) => a.count - b.count); // re-sort asc for display
 
         return { top3Peak, top3Quiet };
     };
 
     const topDevice = getTopDevice();
+
+    // Resolve location for top device
+    let topDeviceLocation = '';
+    let topDeviceName = topDevice ? (topDevice.deviceName || topDevice.deviceId) : '';
+
+    if (topDevice) {
+        // Strip prefix
+        topDeviceName = topDeviceName.replace(/^Camera\s+/i, "");
+
+        // Find location
+        if (cameras) {
+            const cam = cameras.find(c => c.id === topDevice.deviceId);
+            if (cam && cam.metadata && cam.metadata.location) {
+                topDeviceLocation = cam.metadata.location;
+            }
+        }
+    }
+
     const peakTime = getPeakTime();
     const dominantVehicle = getDominantVehicle();
     const { top3Peak, top3Quiet } = getHourlyInsights();
@@ -74,8 +90,13 @@ export function VCCInsights({ stats, loading }: VCCInsightsProps) {
     const insights = [
         ...(topDevice ? [{
             title: 'Busiest Camera',
-            value: topDevice.deviceName || topDevice.deviceId,
-            subtext: `${(topDevice.totalDetections || (topDevice as any).count || 0).toLocaleString()} detections`,
+            value: topDeviceName,
+            subtext: (
+                <span>
+                    {topDeviceLocation && <span className="block font-medium text-xs text-gray-400 mb-0.5">{topDeviceLocation}</span>}
+                    {`${(topDevice.totalDetections || (topDevice as any).count || 0).toLocaleString()} detections`}
+                </span>
+            ),
             icon: Award,
             color: 'text-yellow-500',
             bgColor: 'bg-yellow-500/10'
@@ -107,12 +128,12 @@ export function VCCInsights({ stats, loading }: VCCInsightsProps) {
                             <p className="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wider mb-1">
                                 {insight.title}
                             </p>
-                            <h3 className="text-xl font-bold truncate pr-2" title={insight.value}>
+                            <h3 className="text-xl font-bold truncate pr-2" title={typeof insight.value === 'string' ? insight.value : ''}>
                                 {insight.value}
                             </h3>
-                            <p className="text-sm text-gray-500 mt-1">
+                            <div className="text-sm text-gray-500 mt-1">
                                 {insight.subtext}
-                            </p>
+                            </div>
                         </div>
                         <div className={cn("p-2 rounded-lg", insight.bgColor)}>
                             <insight.icon className={cn("w-5 h-5", insight.color)} />

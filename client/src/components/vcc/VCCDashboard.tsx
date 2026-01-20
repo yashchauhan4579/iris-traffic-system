@@ -45,8 +45,8 @@ export function VCCDashboard() {
   useEffect(() => {
     const fetchCameras = async () => {
       try {
-        const devices = await apiClient.getDevices({ type: 'CAMERA' }) as { id: string; name: string }[];
-        setCameras(devices.map(d => ({ id: d.id, name: d.name })));
+        const devices = await apiClient.getDevices({ type: 'CAMERA' }) as { id: string; name: string; metadata?: any }[];
+        setCameras(devices.map(d => ({ id: d.id, name: d.name, metadata: d.metadata })));
       } catch (err) {
         console.error('Failed to fetch cameras:', err);
       }
@@ -258,7 +258,7 @@ export function VCCDashboard() {
       </div>
 
       {/* Insights Section */}
-      <VCCInsights stats={deviceStats || stats} loading={loading} />
+      <VCCInsights stats={deviceStats || stats} loading={loading} cameras={cameras} />
 
       {/* Real-time Stats - Compact */}
       <Card className="glass p-3 border-blue-500/20">
@@ -492,6 +492,7 @@ export function VCCDashboard() {
                 </div>
 
                 {/* Right Column - Top Devices Table (1/3) */}
+                {/* Right Column - Top Devices Table (1/3) */}
                 {!selectedCamera && (
                   <div className="col-span-1">
                     <Card className="glass p-4 h-full flex flex-col">
@@ -515,29 +516,37 @@ export function VCCDashboard() {
                             </tr>
                           </thead>
                           <tbody>
-                            {byDevice.slice(0, 10).map((device, index) => (
-                              <tr
-                                key={device.deviceId}
-                                className="border-b border-white/5 hover:bg-white/10 cursor-pointer transition-colors"
-                                onClick={() => setSelectedCamera(device.deviceId)}
-                                title={`Click to view stats for ${device.deviceName || device.deviceId}`}
-                              >
-                                <td className="p-2">
-                                  <div className="flex items-center gap-1">
-                                    <Badge variant="outline" className="text-xs px-1">#{index + 1}</Badge>
-                                    <span className="text-sm font-medium truncate">{device.deviceName || device.deviceId}</span>
-                                  </div>
-                                </td>
-                                <td className="p-2 text-right">
-                                  <div className="text-sm font-semibold">{device.totalDetections.toLocaleString()}</div>
-                                  <div className="text-xs text-gray-500 dark:text-gray-400">
-                                    {totalDetections > 0
-                                      ? ((device.totalDetections / totalDetections) * 100).toFixed(1)
-                                      : '0'}%
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
+                            {byDevice.slice(0, 10).map((device, index) => {
+                              const cam = cameras.find(c => c.id === device.deviceId);
+                              const location = cam?.metadata?.location;
+
+                              return (
+                                <tr
+                                  key={device.deviceId}
+                                  className="border-b border-white/5 hover:bg-white/10 cursor-pointer transition-colors"
+                                  onClick={() => setSelectedCamera(device.deviceId)}
+                                  title={`Click to view stats for ${device.deviceName || device.deviceId}`}
+                                >
+                                  <td className="p-2">
+                                    <div className="flex items-start gap-2">
+                                      <Badge variant="outline" className="text-xs px-1 mt-0.5">#{index + 1}</Badge>
+                                      <div className="flex flex-col min-w-0">
+                                        <span className="text-sm font-medium truncate">{(device.deviceName || device.deviceId).replace(/^Camera\s+/i, "")}</span>
+                                        {location && <span className="text-xs text-muted-foreground truncate">{location}</span>}
+                                      </div>
+                                    </div>
+                                  </td>
+                                  <td className="p-2 text-right">
+                                    <div className="text-sm font-semibold">{device.totalDetections.toLocaleString()}</div>
+                                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                                      {totalDetections > 0
+                                        ? ((device.totalDetections / totalDetections) * 100).toFixed(1)
+                                        : '0'}%
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
                           </tbody>
                         </table>
                       </div>
@@ -563,6 +572,7 @@ export function VCCDashboard() {
           devices={stats.byDevice || []}
           totalDetections={stats.totalDetections}
           onSelectCamera={setSelectedCamera}
+          cameras={cameras}
         />
       )}
 

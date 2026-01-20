@@ -72,8 +72,8 @@ export function CrowdDashboard() {
         {/* Grid of Camera Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           {analyses.map((analysis, index) => (
-            <CameraCard 
-              key={analysis.id} 
+            <CameraCard
+              key={analysis.id}
               analysis={analysis}
               onClick={() => setSelectedAnalysis(analysis)}
               isFirst={index === 0}
@@ -95,7 +95,7 @@ export function CrowdDashboard() {
 
 function CameraCard({ analysis, onClick, isFirst }: { analysis: CrowdAnalysis; onClick: () => void; isFirst?: boolean }) {
   return (
-    <div 
+    <div
       className={cn(
         "glass rounded-xl overflow-hidden border border-white/10 dark:border-white/5 hover:shadow-lg transition-shadow cursor-pointer",
         isFirst && "md:col-span-2 md:row-span-2"
@@ -149,10 +149,10 @@ function CameraCard({ analysis, onClick, isFirst }: { analysis: CrowdAnalysis; o
                 analysis.crowdLevel >= 75
                   ? "bg-red-500"
                   : analysis.crowdLevel >= 50
-                  ? "bg-orange-500"
-                  : analysis.crowdLevel >= 25
-                  ? "bg-yellow-500"
-                  : "bg-green-500"
+                    ? "bg-orange-500"
+                    : analysis.crowdLevel >= 25
+                      ? "bg-yellow-500"
+                      : "bg-green-500"
               )}
               style={{ width: `${analysis.crowdLevel}%` }}
             />

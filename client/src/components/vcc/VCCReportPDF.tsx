@@ -126,14 +126,19 @@ const styles = StyleSheet.create({
     },
 });
 
+import { type CameraOption } from '@/components/vcc/CameraSelector';
+
+// ... (keep existing imports)
+
 interface VCCReportPDFProps {
     stats: VCCStats | VCCDeviceStats | null;
     startDate: Date;
     endDate: Date;
     selectedCameraName?: string;
+    cameras?: CameraOption[];
 }
 
-export function VCCReportPDF({ stats, startDate, endDate, selectedCameraName }: VCCReportPDFProps) {
+export function VCCReportPDF({ stats, startDate, endDate, selectedCameraName, cameras }: VCCReportPDFProps) {
     if (!stats) return <Document><Page><Text>No data available</Text></Page></Document>;
 
     const safeStats = stats as any;
@@ -154,9 +159,17 @@ export function VCCReportPDF({ stats, startDate, endDate, selectedCameraName }: 
         ? safeStats.byDevice
         : [];
 
+    // Helper to get location
+    const getLocation = (id: string) => {
+        if (!cameras) return '';
+        const cam = cameras.find(c => c.id === id);
+        return cam?.metadata?.location || '';
+    };
+
     return (
         <Document>
             <Page size="A4" style={styles.page}>
+                {/* ... (keep header and summary sections) */}
                 {/* Header */}
                 <View style={styles.header}>
                     <Text style={styles.title}>{reportTitle}</Text>
@@ -228,10 +241,11 @@ export function VCCReportPDF({ stats, startDate, endDate, selectedCameraName }: 
                         <View style={styles.table}>
                             {/* Header Row - Fixed for pagination */}
                             <View style={[styles.tableRow, styles.tableHeader]} fixed>
-                                <View style={[styles.tableCol, { width: '25%' }]}><Text style={styles.tableCellHeader}>Device Name</Text></View>
-                                <View style={[styles.tableCol, { width: '15%' }]}><Text style={styles.tableCellHeaderRight}>Total</Text></View>
+                                <View style={[styles.tableCol, { width: '35%' }]}><Text style={styles.tableCellHeader}>Device Name</Text></View>
+                                <View style={[styles.tableCol, { width: '20%' }]}><Text style={styles.tableCellHeader}>Location</Text></View>
+                                <View style={[styles.tableCol, { width: '10%' }]}><Text style={styles.tableCellHeaderRight}>Total</Text></View>
                                 {displayTypes.map(type => (
-                                    <View key={type} style={[styles.tableCol, { width: '12%' }]}>
+                                    <View key={type} style={[styles.tableCol, { width: '7%' }]}>
                                         <Text style={styles.tableCellHeaderRight}>{type}</Text>
                                     </View>
                                 ))}
@@ -239,10 +253,13 @@ export function VCCReportPDF({ stats, startDate, endDate, selectedCameraName }: 
                             {/* Data Rows */}
                             {topDevices.map((device: any) => (
                                 <View key={device.deviceId} style={styles.tableRow}>
-                                    <View style={[styles.tableCol, { width: '25%' }]}>
-                                        <Text style={styles.tableCell}>{device.deviceName || device.deviceId}</Text>
+                                    <View style={[styles.tableCol, { width: '35%' }]}>
+                                        <Text style={styles.tableCell}>{(device.deviceName || device.deviceId).replace(/^Camera\s+/i, "")}</Text>
                                     </View>
-                                    <View style={[styles.tableCol, { width: '15%' }]}>
+                                    <View style={[styles.tableCol, { width: '20%' }]}>
+                                        <Text style={styles.tableCell}>{getLocation(device.deviceId)}</Text>
+                                    </View>
+                                    <View style={[styles.tableCol, { width: '10%' }]}>
                                         <Text style={styles.tableCellRight}>
                                             {(device.totalDetections || 0).toLocaleString()}
                                         </Text>
@@ -251,7 +268,7 @@ export function VCCReportPDF({ stats, startDate, endDate, selectedCameraName }: 
                                         // Handle both new structure (byType) and legacy (if cached)
                                         const typeCount = device.byType ? (device.byType[type] || 0) : 0;
                                         return (
-                                            <View key={type} style={[styles.tableCol, { width: '12%' }]}>
+                                            <View key={type} style={[styles.tableCol, { width: '7%' }]}>
                                                 <Text style={styles.tableCellRight}>{Number(typeCount).toLocaleString()}</Text>
                                             </View>
                                         );

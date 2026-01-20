@@ -1,11 +1,11 @@
 import { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Search, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { type VCCStats } from '@/lib/api';
+
+import { type CameraOption } from '@/components/vcc/CameraSelector';
 
 interface VCCDevicesViewProps {
     open: boolean;
@@ -13,12 +13,13 @@ interface VCCDevicesViewProps {
     devices: NonNullable<VCCStats['byDevice']>;
     totalDetections: number;
     onSelectCamera: (deviceId: string) => void;
+    cameras: CameraOption[];
 }
 
 type SortField = 'count' | 'name';
 type SortOrder = 'asc' | 'desc';
 
-export function VCCDevicesView({ open, onOpenChange, devices, totalDetections, onSelectCamera }: VCCDevicesViewProps) {
+export function VCCDevicesView({ open, onOpenChange, devices, totalDetections, onSelectCamera, cameras }: VCCDevicesViewProps) {
     const [search, setSearch] = useState('');
     const [sortField, setSortField] = useState<SortField>('count');
     const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
@@ -116,35 +117,41 @@ export function VCCDevicesView({ open, onOpenChange, devices, totalDetections, o
                         </thead>
                         <tbody>
                             {filteredAndSortedDevices.length > 0 ? (
-                                filteredAndSortedDevices.map((device, index) => (
-                                    <tr
-                                        key={device.deviceId}
-                                        className="border-b last:border-0 hover:bg-muted/50 transition-colors cursor-pointer group"
-                                        onClick={() => {
-                                            onSelectCamera(device.deviceId);
-                                            onOpenChange(false);
-                                        }}
-                                    >
-                                        <td className="p-3 text-xs text-muted-foreground">
-                                            #{index + 1}
-                                        </td>
-                                        <td className="p-3">
-                                            <div className="font-medium">{device.deviceName || device.deviceId}</div>
-                                            <div className="text-xs text-muted-foreground font-mono">{device.deviceId}</div>
-                                        </td>
-                                        <td className="p-3 text-right">
-                                            <div className="font-semibold">{Number(device.totalDetections).toLocaleString()}</div>
-                                        </td>
-                                        <td className="p-3 text-right text-xs text-muted-foreground">
-                                            {totalDetections > 0 ? ((Number(device.totalDetections) / totalDetections) * 100).toFixed(1) : '0'}%
-                                        </td>
-                                        <td className="p-3 text-right">
-                                            <Button variant="ghost" size="sm" className="h-8 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                View
-                                            </Button>
-                                        </td>
-                                    </tr>
-                                ))
+                                filteredAndSortedDevices.map((device, index) => {
+                                    const cam = cameras.find(c => c.id === device.deviceId);
+                                    const location = cam?.metadata?.location;
+
+                                    return (
+                                        <tr
+                                            key={device.deviceId}
+                                            className="border-b last:border-0 hover:bg-muted/50 transition-colors cursor-pointer group"
+                                            onClick={() => {
+                                                onSelectCamera(device.deviceId);
+                                                onOpenChange(false);
+                                            }}
+                                        >
+                                            <td className="p-3 text-xs text-muted-foreground">
+                                                #{index + 1}
+                                            </td>
+                                            <td className="p-3">
+                                                <div className="font-medium">{(device.deviceName || device.deviceId).replace(/^Camera\s+/i, "")}</div>
+                                                {location && <div className="text-xs text-gray-500 font-medium mb-0.5">{location}</div>}
+                                                <div className="text-xs text-muted-foreground font-mono">{device.deviceId}</div>
+                                            </td>
+                                            <td className="p-3 text-right">
+                                                <div className="font-semibold">{Number(device.totalDetections).toLocaleString()}</div>
+                                            </td>
+                                            <td className="p-3 text-right text-xs text-muted-foreground">
+                                                {totalDetections > 0 ? ((Number(device.totalDetections) / totalDetections) * 100).toFixed(1) : '0'}%
+                                            </td>
+                                            <td className="p-3 text-right">
+                                                <Button variant="ghost" size="sm" className="h-8 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    View
+                                                </Button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })
                             ) : (
                                 <tr>
                                     <td colSpan={5} className="p-8 text-center text-muted-foreground">

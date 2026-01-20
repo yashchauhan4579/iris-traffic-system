@@ -31,7 +31,7 @@ func PostIngest(c *gin.Context) {
 		Status: "active",
 	}
 
-	// Extract lat/lng from data if available
+	// Extract lat/lng/metadata from data if available
 	if dataMap, ok := req.Data.Data.(map[string]interface{}); ok {
 		if lat, ok := dataMap["lat"].(float64); ok {
 			device.Lat = lat
@@ -39,14 +39,35 @@ func PostIngest(c *gin.Context) {
 		if lng, ok := dataMap["lng"].(float64); ok {
 			device.Lng = lng
 		}
-		// Extract metadata if available
+		
+		// Initialize metadata
+		var metaMap map[string]interface{}
+		
+		// If metadata object exists, use it as base
 		if metadata, ok := dataMap["metadata"].(map[string]interface{}); ok {
-			device.Metadata = models.JSONB{Data: metadata}
+			metaMap = metadata
+		} else {
+			metaMap = make(map[string]interface{})
 		}
+		
+		// Explicitly check for location and camera_name at top level of data
+		// This supports flat payloads where location is a sibling of lat/lng
+		if loc, ok := dataMap["location"].(string); ok && loc != "" {
+			metaMap["location"] = loc
+		}
+		
+		if cName, ok := dataMap["camera_name"].(string); ok && cName != "" {
+			name := cName
+			device.Name = &name
+		}
+		
+		device.Metadata = models.JSONB{Data: metaMap}
 	}
 
-	name := "Camera " + req.DeviceID
-	device.Name = &name
+	if device.Name == nil {
+		name := "Camera " + req.DeviceID
+		device.Name = &name
+	}
 
 	if err := database.DB.Where("id = ?", req.DeviceID).
 		Assign(models.Device{
@@ -57,9 +78,12 @@ func PostIngest(c *gin.Context) {
 		return
 	}
 
-	// Update metadata if provided
+	// Update metadata if provided (force update to ensure location is saved)
 	if device.Metadata.Data != nil {
 		database.DB.Model(&device).Update("metadata", device.Metadata)
+		if device.Name != nil {
+			database.DB.Model(&device).Update("name", device.Name)
+		}
 	}
 
 	// Create event

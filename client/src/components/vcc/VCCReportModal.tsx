@@ -5,7 +5,7 @@ import { Loader2, FileDown, RefreshCw, FileSpreadsheet } from 'lucide-react';
 import { CameraSelector, type CameraOption } from '@/components/vcc/CameraSelector';
 import { VCCReportPDF } from '@/components/vcc/VCCReportPDF';
 import { PDFDownloadLink } from '@react-pdf/renderer';
-import { apiClient, type VCCStats } from '@/lib/api';
+import { apiClient, type VCCStats, type VCCDeviceStats } from '@/lib/api';
 import { format } from 'date-fns';
 import { DateTimeRangeContent, type DateTimeRange } from '@/components/vcc/DateTimeRangePicker';
 import * as XLSX from 'xlsx';
@@ -90,13 +90,20 @@ export function VCCReportModal({ open, onOpenChange, cameras, initialDateRange }
             }
 
             // Prepare data for Excel
-            const worksheetData = events.map(event => ({
-                'Timestamp': format(new Date(event.timestamp), 'yyyy-MM-dd HH:mm:ss'),
-                'Vehicle Type': event.vehicleType,
-                'Confidence': event.confidence ? (event.confidence * 100).toFixed(1) + '%' : 'N/A',
-                'Camera Name': event.device?.name || event.deviceId,
-                'Direction': event.direction || 'N/A'
-            }));
+            const worksheetData = events.map(event => {
+                const cam = cameras.find(c => c.id === event.deviceId);
+                const location = cam?.metadata?.location || 'N/A';
+                const cameraName = (event.device?.name || event.deviceId).replace(/^Camera\s+/i, "");
+
+                return {
+                    'Timestamp': format(new Date(event.timestamp), 'yyyy-MM-dd HH:mm:ss'),
+                    'Vehicle Type': event.vehicleType,
+                    'Confidence': event.confidence ? (event.confidence * 100).toFixed(1) + '%' : 'N/A',
+                    'Camera Name': cameraName,
+                    'Location': location,
+                    'Direction': event.direction || 'N/A'
+                };
+            });
 
             // Create workbook and worksheet
             const worksheet = XLSX.utils.json_to_sheet(worksheetData);
@@ -182,6 +189,7 @@ export function VCCReportModal({ open, onOpenChange, cameras, initialDateRange }
                                             startDate={dateRange.startDate}
                                             endDate={dateRange.endDate}
                                             selectedCameraName={selectedCamera ? cameras.find(c => c.id === selectedCamera)?.name : undefined}
+                                            cameras={cameras}
                                         />
                                     }
                                     fileName={`iris_atcc_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.pdf`}
