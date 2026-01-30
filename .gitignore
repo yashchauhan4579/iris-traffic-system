@@ -20,6 +20,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 *.log
+*.log.*
+*.err
+*.err.*
 
 # IDEs
 .idea/
@@ -36,9 +39,9 @@ go1.22.5.linux-amd64.tar.gz
 
 # Ignored Directories
 libraries/
-irisv3/
-magicnetwork/
-magicbox-node/
-scripts/
+# irisv3 is legacy, keep ignored if desired, but user said "everything"
+# magicnetwork/
+# magicbox-node/
+# scripts/
 go/
 media/

@@ -1,0 +1,39 @@
+[Unit]
+Description=MagicBox Node - IRIS Edge Worker
+Documentation=https://github.com/irisdrone/magicbox-node
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/magicbox
+
+ExecStart=/opt/magicbox/bin/magicbox \
+    -config /etc/magicbox/config.json \
+    -data /var/lib/magicbox \
+    -port 8080
+
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=magicbox
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/magicbox /etc/magicbox /opt/magicbox
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+
+# Environment
+Environment=GOGC=100
+Environment=GOMAXPROCS=4
+
+[Install]
+WantedBy=multi-user.target
+

@@ -1,0 +1,181 @@
+{{define "setup.html"}}
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setup - MagicBox Node</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'iris': {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            200: '#bae6fd',
+                            300: '#7dd3fc',
+                            400: '#38bdf8',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            800: '#075985',
+                            900: '#0c4a6e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @keyframes pulse-slow {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .pulse-slow { animation: pulse-slow 2s ease-in-out infinite; }
+        .glass {
+            background: rgba(17, 24, 39, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(55, 65, 81, 0.5);
+        }
+    </style>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen">
+<div class="min-h-screen flex items-center justify-center p-4">
+    <div class="glass rounded-2xl p-8 max-w-lg w-full">
+        <!-- Logo -->
+        <div class="text-center mb-8">
+            <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-iris-600/20 mb-4">
+                <svg class="w-10 h-10 text-iris-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                </svg>
+            </div>
+            <h1 class="text-2xl font-bold text-white">MagicBox Setup</h1>
+            <p class="text-gray-400 mt-2">Connect this node to the IRIS platform</p>
+        </div>
+
+        <!-- Device Info -->
+        <div class="bg-gray-800/50 rounded-lg p-4 mb-6">
+            <div class="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                    <span class="text-gray-500">Device Name</span>
+                    <p class="text-white font-mono">{{.config.NodeName}}</p>
+                </div>
+                <div>
+                    <span class="text-gray-500">Model</span>
+                    <p class="text-white font-mono text-xs">{{.config.NodeModel}}</p>
+                </div>
+                <div>
+                    <span class="text-gray-500">MAC Address</span>
+                    <p class="text-white font-mono">{{.config.MAC}}</p>
+                </div>
+                <div>
+                    <span class="text-gray-500">Status</span>
+                    <p class="text-yellow-400">{{.config.State}}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Setup Form -->
+        <form id="form-setup" onsubmit="saveSetup(event)">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Node Name</label>
+                    <input type="text" id="nodeName" required
+                        value="{{.config.NodeName}}"
+                        class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-iris-500 focus:border-transparent">
+                </div>
+                <div class="p-3 bg-blue-900/20 border border-blue-700/30 rounded-lg">
+                    <p class="text-sm text-blue-200">
+                        <strong>Note:</strong> After saving, configure the platform server URL, registration token, and network settings in the dashboard.
+                    </p>
+                </div>
+                <button type="submit" class="w-full py-3 bg-iris-600 hover:bg-iris-700 rounded-lg font-medium transition">
+                    Save & Continue to Dashboard
+                </button>
+            </div>
+        </form>
+
+        <!-- Pending Status (shown after requesting approval) -->
+        <div id="pending-status" class="hidden text-center">
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-yellow-600/20 mb-4">
+                <svg class="w-8 h-8 text-yellow-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+            </div>
+            <h3 class="text-lg font-medium text-yellow-400">Waiting for Approval</h3>
+            <p class="text-gray-400 mt-2">An administrator needs to approve this device.</p>
+            <p class="text-sm text-gray-500 mt-4">Request ID: <span id="request-id" class="font-mono">-</span></p>
+            <button onclick="checkApproval()" class="mt-4 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm">
+                Check Status
+            </button>
+        </div>
+
+        <!-- Error Message -->
+        <div id="error-msg" class="hidden mt-4 p-3 bg-red-900/20 border border-red-700/30 rounded-lg text-red-300 text-sm"></div>
+    </div>
+</div>
+
+<script>
+    async function api(method, path, data) {
+        const opts = {
+            method,
+            headers: { 'Content-Type': 'application/json' }
+        };
+        if (data) opts.body = JSON.stringify(data);
+        const res = await fetch('/api' + path, opts);
+        return res.json();
+    }
+
+    // Show current state if pending
+    {{if eq .config.State "pending"}}
+    document.getElementById('form-setup').classList.add('hidden');
+    document.getElementById('pending-status').classList.remove('hidden');
+    document.getElementById('request-id').textContent = '{{.config.Platform.RequestID}}';
+    // Start polling
+    setInterval(checkApproval, 10000);
+    {{end}}
+
+    async function saveSetup(e) {
+        e.preventDefault();
+        const errorEl = document.getElementById('error-msg');
+        errorEl.classList.add('hidden');
+        
+        try {
+            const res = await api('PUT', '/config', {
+                nodeName: document.getElementById('nodeName').value
+            });
+            
+            if (res.success) {
+                window.location.href = '/dashboard';
+            } else {
+                throw new Error(res.error || 'Failed to save');
+            }
+        } catch (err) {
+            errorEl.textContent = err.message;
+            errorEl.classList.remove('hidden');
+        }
+    }
+
+    async function checkApproval() {
+        try {
+            const res = await api('GET', '/approval-status');
+            if (res.status === 'approved') {
+                window.location.href = '/dashboard';
+            } else if (res.status === 'rejected') {
+                const errorEl = document.getElementById('error-msg');
+                errorEl.textContent = 'Approval rejected: ' + (res.message || 'Unknown reason');
+                errorEl.classList.remove('hidden');
+            }
+        } catch (err) {
+            console.error('Approval check failed:', err);
+        }
+    }
+</script>
+</body>
+</html>
+{{end}}

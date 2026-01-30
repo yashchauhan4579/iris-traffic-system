@@ -1,0 +1,66 @@
+{{define "logs.html"}}
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logs - MagicBox Node</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'iris': { 400: '#38bdf8', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .glass { background: rgba(17, 24, 39, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(55, 65, 81, 0.5); }
+    </style>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen">
+<div class="min-h-screen">
+    <header class="glass border-b border-gray-800">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex items-center gap-4">
+            <div class="w-10 h-10 rounded-full bg-iris-600/20 flex items-center justify-center">
+                <svg class="w-5 h-5 text-iris-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-lg font-bold text-white">{{.config.NodeName}}</h1>
+                <p class="text-xs text-gray-400">MagicBox Node</p>
+            </div>
+        </div>
+        <nav class="max-w-7xl mx-auto px-4 flex gap-1">
+            <a href="/dashboard" class="px-4 py-2 text-gray-400 hover:text-gray-300">Dashboard</a>
+            <a href="/queue" class="px-4 py-2 text-gray-400 hover:text-gray-300">Event Queue</a>
+            <a href="/cameras" class="px-4 py-2 text-gray-400 hover:text-gray-300">Cameras</a>
+            <a href="/logs" class="px-4 py-2 text-iris-400 border-b-2 border-iris-400">Logs</a>
+        </nav>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-6">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-xl font-semibold">System Logs</h2>
+            <button onclick="location.reload()" class="px-4 py-2 bg-iris-600 hover:bg-iris-700 rounded-lg text-sm font-medium transition">
+                Refresh
+            </button>
+        </div>
+
+        <div class="glass rounded-xl p-6">
+            <div class="h-[500px] overflow-y-auto font-mono text-sm space-y-1 text-gray-400">
+                <p class="text-center py-8">Log viewer coming soon</p>
+                <p class="text-center text-xs">Logs are stored in the data directory</p>
+            </div>
+        </div>
+    </main>
+</div>
+</body>
+</html>
+{{end}}

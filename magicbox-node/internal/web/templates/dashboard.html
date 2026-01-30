@@ -1,0 +1,866 @@
+{{define "dashboard.html"}}
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - MagicBox Node</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'iris': {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            200: '#bae6fd',
+                            300: '#7dd3fc',
+                            400: '#38bdf8',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            800: '#075985',
+                            900: '#0c4a6e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @keyframes pulse-slow {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .pulse-slow { animation: pulse-slow 2s ease-in-out infinite; }
+        .glass {
+            background: rgba(17, 24, 39, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(55, 65, 81, 0.5);
+        }
+    </style>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen">
+<div class="min-h-screen">
+    <!-- Header -->
+    <header class="glass border-b border-gray-800">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <div class="w-10 h-10 rounded-full bg-iris-600/20 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-iris-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold text-white">{{.config.NodeName}}</h1>
+                    <p class="text-xs text-gray-400">MagicBox Node</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="flex items-center gap-2 px-3 py-1 rounded-full text-xs {{if eq .config.State "active"}}bg-green-600/20 text-green-400{{else if eq .config.State "approved"}}bg-iris-600/20 text-iris-400{{else}}bg-yellow-600/20 text-yellow-400{{end}}">
+                    <span class="w-2 h-2 rounded-full {{if eq .config.State "active"}}bg-green-400{{else if eq .config.State "approved"}}bg-iris-400{{else}}bg-yellow-400{{end}} pulse-slow"></span>
+                    {{.config.State}}
+                </span>
+            </div>
+        </div>
+        <!-- Nav -->
+        <nav class="max-w-7xl mx-auto px-4 flex gap-1">
+            <a href="/dashboard" class="px-4 py-2 text-iris-400 border-b-2 border-iris-400">Dashboard</a>
+            <a href="/queue" class="px-4 py-2 text-gray-400 hover:text-gray-300">Event Queue</a>
+            <a href="/cameras" class="px-4 py-2 text-gray-400 hover:text-gray-300">Cameras</a>
+            <a href="/logs" class="px-4 py-2 text-gray-400 hover:text-gray-300">Logs</a>
+        </nav>
+    </header>
+
+    <!-- Content -->
+    <main class="max-w-7xl mx-auto px-4 py-6">
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <!-- Platform Status -->
+            <div class="glass rounded-xl p-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg bg-iris-600/20 flex items-center justify-center">
+                        <svg class="w-5 h-5 text-iris-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-400">Platform</p>
+                        <p class="text-sm font-medium text-white" id="platform-status">Connected</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Cameras -->
+            <div class="glass rounded-xl p-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg bg-green-600/20 flex items-center justify-center">
+                        <svg class="w-5 h-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-400">Cameras</p>
+                        <p class="text-sm font-medium text-white">{{len .config.Cameras}} assigned</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Queue Pending -->
+            <div class="glass rounded-xl p-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg bg-yellow-600/20 flex items-center justify-center">
+                        <svg class="w-5 h-5 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-400">Queue Pending</p>
+                        <p class="text-sm font-medium text-white" id="queue-pending">{{.queueStats.Pending}}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Queue Failed -->
+            <div class="glass rounded-xl p-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg bg-red-600/20 flex items-center justify-center">
+                        <svg class="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-400">Failed Events</p>
+                        <p class="text-sm font-medium text-white" id="queue-failed">{{.queueStats.Failed}}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-6">
+            <!-- System Info -->
+            <div class="glass rounded-xl p-6">
+                <h2 class="text-lg font-semibold mb-4">System Information</h2>
+                <div class="space-y-3">
+                    <div class="flex justify-between py-2 border-b border-gray-800">
+                        <span class="text-gray-400">Device Name</span>
+                        <span class="text-white font-mono">{{.config.NodeName}}</span>
+                    </div>
+                    <div class="flex justify-between py-2 border-b border-gray-800">
+                        <span class="text-gray-400">Model</span>
+                        <span class="text-white font-mono text-xs">{{.config.NodeModel}}</span>
+                    </div>
+                    <div class="flex justify-between py-2 border-b border-gray-800">
+                        <span class="text-gray-400">MAC Address</span>
+                        <span class="text-white font-mono">{{.config.MAC}}</span>
+                    </div>
+                    <div class="flex justify-between py-2 border-b border-gray-800">
+                        <span class="text-gray-400">Worker ID</span>
+                        <span class="text-white font-mono text-xs">{{.config.Platform.WorkerID}}</span>
+                    </div>
+                    <div class="flex justify-between py-2 border-b border-gray-800">
+                        <span class="text-gray-400">Config Version</span>
+                        <span class="text-white">{{.config.ConfigVersion}}</span>
+                    </div>
+                    <div class="flex justify-between py-2">
+                        <span class="text-gray-400">Last Sync</span>
+                        <span class="text-white" id="last-sync">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Platform Connection -->
+            <div class="glass rounded-xl p-6">
+                <h2 class="text-lg font-semibold mb-4">Platform Connection</h2>
+                <div class="space-y-3">
+                    <div class="flex justify-between py-2 border-b border-gray-800">
+                        <span class="text-gray-400">Server URL</span>
+                        <span class="text-white font-mono text-xs" id="platform-server-url">{{if .config.Platform.ServerURL}}{{.config.Platform.ServerURL}}{{else}}Not configured{{end}}</span>
+                    </div>
+                    <div class="flex justify-between py-2 border-b border-gray-800">
+                        <span class="text-gray-400">Status</span>
+                        <span class="text-green-400" id="connection-status">{{if .config.Platform.WorkerID}}Connected{{else}}Not registered{{end}}</span>
+                    </div>
+                </div>
+                
+                <!-- Configuration form (shown if not configured or not registered) -->
+                <div id="platform-config-form" class="mt-6 space-y-3 {{if and .config.Platform.ServerURL .config.Platform.WorkerID}}hidden{{end}}">
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Platform Server URL</label>
+                        <input type="url" id="platform-server-url-input" placeholder="https://iris.example.com" 
+                            value="{{.config.Platform.ServerURL}}"
+                            class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-iris-500 focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Registration Token</label>
+                        <input type="password" id="platform-token-input" placeholder="Enter registration token" 
+                            value=""
+                            class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm font-mono focus:ring-2 focus:ring-iris-500 focus:border-transparent">
+                        <p class="text-xs text-gray-500 mt-1">Enter your registration token to register with the platform.</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="registerWithPlatform()" class="flex-1 px-4 py-2 bg-iris-600 hover:bg-iris-700 rounded-lg text-sm font-medium transition">
+                            {{if .config.Platform.WorkerID}}Update & Re-register{{else}}Register with Token{{end}}
+                        </button>
+                        <button onclick="requestApproval()" class="flex-1 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 rounded-lg text-sm font-medium transition">
+                            Request Approval
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Actions (shown if configured and registered) -->
+                <div id="platform-actions" class="mt-6 flex gap-3 {{if and .config.Platform.ServerURL .config.Platform.WorkerID}}{{else}}hidden{{end}}">
+                    <button onclick="syncConfig()" class="flex-1 px-4 py-2 bg-iris-600 hover:bg-iris-700 rounded-lg text-sm font-medium transition">
+                        Sync Config
+                    </button>
+                    <button onclick="disconnect()" class="px-4 py-2 bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded-lg text-sm font-medium transition">
+                        Disconnect
+                    </button>
+                </div>
+            </div>
+
+            <!-- Network Configuration -->
+            <div class="glass rounded-xl p-6">
+                <h2 class="text-lg font-semibold mb-4">Network Configuration</h2>
+                <div class="space-y-4">
+                    <!-- Connection Mode Toggle -->
+                    <div class="flex items-center gap-4 mb-4">
+                        <span class="text-sm text-gray-400">Connection Mode:</span>
+                        <div class="flex gap-2">
+                            <button id="mode-direct" onclick="setNetworkMode('direct')" class="px-3 py-1 rounded-lg text-sm font-medium transition network-mode-btn bg-gray-700 text-gray-300">
+                                Direct IP
+                            </button>
+                            <button id="mode-magicnetwork" onclick="setNetworkMode('magicnetwork')" class="px-3 py-1 rounded-lg text-sm font-medium transition network-mode-btn bg-gray-700 text-gray-300">
+                                MagicNetwork
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Direct IP Configuration -->
+                    <div id="config-direct" class="space-y-3">
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Server IP Address</label>
+                            <input type="text" id="server-ip" placeholder="192.168.1.100" 
+                                value="{{.config.Platform.ServerIP}}"
+                                class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-iris-500 focus:border-transparent">
+                            <p class="text-xs text-gray-500 mt-1">Use direct IP connection to the platform server</p>
+                        </div>
+                        <button onclick="saveNetworkConfig()" class="w-full px-4 py-2 bg-iris-600 hover:bg-iris-700 rounded-lg text-sm font-medium transition">
+                            Save Network Config
+                        </button>
+                    </div>
+
+                    <!-- MagicNetwork Configuration (shown when mode is magicnetwork) -->
+                    <div id="config-magicnetwork" class="hidden space-y-3">
+                        <p class="text-xs text-gray-500 mb-2">Configure MagicNetwork VPN settings in the MagicNetwork VPN section below</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MagicNetwork VPN -->
+            <div class="glass rounded-xl p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-semibold">MagicNetwork VPN</h2>
+                    <span id="mn-status-badge" class="px-2 py-1 bg-gray-600/20 text-gray-400 text-xs rounded-full">Checking...</span>
+                </div>
+                <div class="space-y-3">
+                    <div class="flex justify-between py-2 border-b border-gray-800">
+                        <span class="text-gray-400">Installed</span>
+                        <span id="mn-installed" class="text-white">-</span>
+                    </div>
+                    <div class="flex justify-between py-2 border-b border-gray-800">
+                        <span class="text-gray-400">Assigned IP</span>
+                        <span id="mn-assigned-ip" class="text-white font-mono">-</span>
+                    </div>
+                    <div class="flex justify-between py-2 border-b border-gray-800">
+                        <span class="text-gray-400">Server IP</span>
+                        <span id="mn-server-ip" class="text-white font-mono">-</span>
+                    </div>
+                    <div class="flex justify-between py-2 border-b border-gray-800">
+                        <span class="text-gray-400">Last Handshake</span>
+                        <span id="mn-last-handshake" class="text-white">-</span>
+                    </div>
+                    <div class="flex justify-between py-2">
+                        <span class="text-gray-400">Data Transfer</span>
+                        <span id="mn-transfer" class="text-white font-mono">-</span>
+                    </div>
+                </div>
+                
+                <div id="mn-actions" class="mt-6">
+                    <!-- Setup form (shown when not configured) -->
+                    <div id="mn-setup-form" class="hidden space-y-3">
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">MagicNetwork API URL</label>
+                            <input type="text" id="mn-api-url" placeholder="http://vpn.example.com:8080" 
+                                class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">API Key</label>
+                            <input type="password" id="mn-api-key" placeholder="mn_xxx..." 
+                                class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm font-mono focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">MagicNetwork Endpoint (host:port)</label>
+                            <input type="text" id="mn-endpoint" placeholder="vpn.example.com:51820" 
+                                class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                        </div>
+                        <button onclick="setupMagicNetwork()" class="w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-sm font-medium transition">
+                            🔐 Connect to VPN
+                        </button>
+                    </div>
+                    <!-- Control buttons (shown when configured) -->
+                    <div id="mn-controls" class="hidden flex gap-3">
+                        <button onclick="magicNetworkUp()" class="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-medium transition">
+                            Connect
+                        </button>
+                        <button onclick="magicNetworkDown()" class="flex-1 px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg text-sm font-medium transition">
+                            Disconnect
+                        </button>
+                    </div>
+                </div>
+                <!-- SSH info (shown when connected) -->
+                <div id="mn-ssh-info" class="hidden mt-4 p-3 bg-green-900/20 border border-green-700/30 rounded-lg">
+                    <p class="text-sm text-green-300">
+                        <strong>SSH Access:</strong> <code class="bg-gray-800 px-1 rounded" id="ssh-command">ssh user@10.10.x.x</code>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Resources -->
+            <div class="glass rounded-xl p-6">
+                <h2 class="text-lg font-semibold mb-4">System Resources</h2>
+                <div class="space-y-4">
+                    <!-- CPU -->
+                    <div>
+                        <div class="flex justify-between text-sm mb-1">
+                            <span class="text-gray-400">CPU</span>
+                            <span class="text-white" id="cpu-percent">-</span>
+                        </div>
+                        <div class="h-2 bg-gray-800 rounded-full overflow-hidden">
+                            <div id="cpu-bar" class="h-full bg-iris-500 rounded-full transition-all" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <!-- Memory -->
+                    <div>
+                        <div class="flex justify-between text-sm mb-1">
+                            <span class="text-gray-400">Memory</span>
+                            <span class="text-white" id="mem-percent">-</span>
+                        </div>
+                        <div class="h-2 bg-gray-800 rounded-full overflow-hidden">
+                            <div id="mem-bar" class="h-full bg-green-500 rounded-full transition-all" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <!-- GPU -->
+                    <div>
+                        <div class="flex justify-between text-sm mb-1">
+                            <span class="text-gray-400">GPU</span>
+                            <span class="text-white" id="gpu-percent">-</span>
+                        </div>
+                        <div class="h-2 bg-gray-800 rounded-full overflow-hidden">
+                            <div id="gpu-bar" class="h-full bg-purple-500 rounded-full transition-all" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <!-- Temperature -->
+                    <div class="flex justify-between pt-2 border-t border-gray-800">
+                        <span class="text-gray-400">Temperature</span>
+                        <span class="text-white" id="temperature">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Streaming Pipeline -->
+            <div class="glass rounded-xl p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-semibold">Streaming Pipeline</h2>
+                    <span id="nats-status" class="px-2 py-1 bg-green-600/20 text-green-400 text-xs rounded-full">Connected</span>
+                </div>
+                <div class="space-y-3">
+                    <div class="flex justify-between py-2 border-b border-gray-800">
+                        <span class="text-gray-400">NATS Address</span>
+                        <span class="text-white font-mono text-xs" id="nats-address">-</span>
+                    </div>
+                    <div class="flex justify-between py-2 border-b border-gray-800">
+                        <span class="text-gray-400">Workers Connected</span>
+                        <span class="text-white" id="nats-clients">-</span>
+                    </div>
+                    <div class="flex justify-between py-2 border-b border-gray-800">
+                        <span class="text-gray-400">Subscriptions</span>
+                        <span class="text-white" id="nats-subscriptions">-</span>
+                    </div>
+                    <div class="flex justify-between py-2 border-b border-gray-800">
+                        <span class="text-gray-400">Frames Published</span>
+                        <span class="text-white font-mono" id="nats-frames-published">-</span>
+                    </div>
+                    <div class="flex justify-between py-2 border-b border-gray-800">
+                        <span class="text-gray-400">Frames Dropped</span>
+                        <span id="nats-frames-dropped" class="text-white font-mono">-</span>
+                    </div>
+                    <div class="flex justify-between py-2 border-b border-gray-800">
+                        <span class="text-gray-400">Slow Consumers</span>
+                        <span id="nats-slow-consumers" class="text-white">-</span>
+                    </div>
+                    <div class="flex justify-between py-2">
+                        <span class="text-gray-400">Data Out</span>
+                        <span class="text-white font-mono" id="nats-data-out">-</span>
+                    </div>
+                </div>
+                <!-- Alerts -->
+                <div id="nats-alerts" class="mt-4 space-y-2 hidden">
+                </div>
+            </div>
+
+            <!-- Cameras Overview -->
+            <div class="glass rounded-xl p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-semibold">Cameras</h2>
+                    <a href="/cameras" class="text-iris-400 hover:text-iris-300 text-sm">View All →</a>
+                </div>
+                {{if .config.Cameras}}
+                <div class="space-y-2">
+                    {{range .config.Cameras}}
+                    <div class="flex items-center justify-between py-2 px-3 bg-gray-800/50 rounded-lg">
+                        <div class="flex items-center gap-3">
+                            <span class="w-2 h-2 rounded-full {{if .Enabled}}bg-green-400{{else}}bg-gray-500{{end}}"></span>
+                            <span class="text-sm text-white">{{.Name}}</span>
+                        </div>
+                        <div class="flex gap-1">
+                            {{range .Analytics}}
+                            <span class="px-2 py-0.5 bg-iris-600/20 text-iris-400 text-xs rounded">{{.}}</span>
+                            {{end}}
+                        </div>
+                    </div>
+                    {{end}}
+                </div>
+                {{else}}
+                <div class="text-center py-8 text-gray-500">
+                    <p>No cameras assigned yet</p>
+                    <p class="text-sm mt-1">Sync with platform to get assignments</p>
+                </div>
+                {{end}}
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+    async function api(method, path, data) {
+        const opts = {
+            method,
+            headers: { 'Content-Type': 'application/json' }
+        };
+        if (data) opts.body = JSON.stringify(data);
+        const res = await fetch('/api' + path, opts);
+        return res.json();
+    }
+    
+    function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `fixed bottom-4 right-4 px-4 py-2 rounded-lg shadow-lg z-50 ${
+            type === 'error' ? 'bg-red-600' : 
+            type === 'success' ? 'bg-green-600' : 'bg-iris-600'
+        }`;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
+
+    // Format last sync time
+    const lastSync = '{{.config.LastSync}}';
+    if (lastSync && lastSync !== '0001-01-01T00:00:00Z') {
+        document.getElementById('last-sync').textContent = new Date(lastSync).toLocaleString();
+    }
+
+    // Format bytes to human readable
+    function formatBytes(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    }
+
+    // Format large numbers
+    function formatNumber(num) {
+        if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+        if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+        return num.toString();
+    }
+
+    // Refresh status periodically
+    async function refreshStatus() {
+        try {
+            const status = await api('GET', '/status');
+            document.getElementById('queue-pending').textContent = status.queueStats.pending;
+            document.getElementById('queue-failed').textContent = status.queueStats.failed;
+        } catch (err) {
+            console.error('Status refresh failed:', err);
+        }
+    }
+
+    // Refresh NATS stats
+    async function refreshNATSStats() {
+        try {
+            const nats = await api('GET', '/nats/info');
+            
+            if (!nats.enabled) {
+                document.getElementById('nats-status').textContent = 'Disabled';
+                document.getElementById('nats-status').className = 'px-2 py-1 bg-gray-600/20 text-gray-400 text-xs rounded-full';
+                return;
+            }
+
+            document.getElementById('nats-address').textContent = nats.address;
+            document.getElementById('nats-clients').textContent = (nats.clients - 1) + ' workers'; // -1 for internal
+            document.getElementById('nats-subscriptions').textContent = nats.subscriptions;
+            document.getElementById('nats-frames-published').textContent = formatNumber(nats.frames_published);
+            document.getElementById('nats-data-out').textContent = formatBytes(nats.out_bytes);
+
+            // Frames dropped (highlight if > 0)
+            const droppedEl = document.getElementById('nats-frames-dropped');
+            droppedEl.textContent = formatNumber(nats.frames_dropped);
+            if (nats.frames_dropped > 0) {
+                droppedEl.className = 'text-yellow-400 font-mono';
+            } else {
+                droppedEl.className = 'text-white font-mono';
+            }
+
+            // Slow consumers (highlight if > 0)
+            const slowEl = document.getElementById('nats-slow-consumers');
+            slowEl.textContent = nats.slow_consumers;
+            if (nats.slow_consumers > 0) {
+                slowEl.className = 'text-red-400';
+            } else {
+                slowEl.className = 'text-white';
+            }
+
+            // Show alerts if needed
+            const alertsEl = document.getElementById('nats-alerts');
+            alertsEl.innerHTML = '';
+            
+            if (nats.clients <= 1) {
+                alertsEl.innerHTML += `
+                    <div class="p-3 bg-yellow-900/20 border border-yellow-700/30 rounded-lg text-yellow-300 text-sm">
+                        ⚠️ No workers connected. Frames are being dropped.
+                    </div>`;
+                alertsEl.classList.remove('hidden');
+            } else if (nats.slow_consumers > 0) {
+                alertsEl.innerHTML += `
+                    <div class="p-3 bg-red-900/20 border border-red-700/30 rounded-lg text-red-300 text-sm">
+                        ⚠️ Slow consumer detected! Workers can't keep up with frame rate.
+                    </div>`;
+                alertsEl.classList.remove('hidden');
+            } else if (nats.frames_dropped > 1000) {
+                alertsEl.innerHTML += `
+                    <div class="p-3 bg-yellow-900/20 border border-yellow-700/30 rounded-lg text-yellow-300 text-sm">
+                        ⚠️ High frame drop count. Check worker connectivity.
+                    </div>`;
+                alertsEl.classList.remove('hidden');
+            } else {
+                alertsEl.classList.add('hidden');
+            }
+
+        } catch (err) {
+            console.error('NATS stats refresh failed:', err);
+        }
+    }
+
+    async function registerWithPlatform() {
+        const serverURL = document.getElementById('platform-server-url-input').value.trim();
+        const token = document.getElementById('platform-token-input').value.trim();
+        
+        if (!serverURL) {
+            showToast('Please enter a server URL', 'error');
+            return;
+        }
+        
+        if (!token) {
+            showToast('Please enter a registration token', 'error');
+            return;
+        }
+        
+        try {
+            const res = await api('POST', '/register', {
+                serverUrl: serverURL,
+                token: token
+            });
+            
+            if (res.success) {
+                showToast('Registration successful!', 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                throw new Error(res.error || 'Registration failed');
+            }
+        } catch (err) {
+            showToast('Registration failed: ' + err.message, 'error');
+        }
+    }
+    
+    async function requestApproval() {
+        const serverURL = document.getElementById('platform-server-url-input').value.trim();
+        
+        if (!serverURL) {
+            showToast('Please enter a server URL', 'error');
+            return;
+        }
+        
+        try {
+            const res = await api('POST', '/request-approval', {
+                serverUrl: serverURL
+            });
+            
+            if (res.success) {
+                showToast('Approval request submitted! Request ID: ' + res.requestId, 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                throw new Error(res.error || 'Request failed');
+            }
+        } catch (err) {
+            showToast('Approval request failed: ' + err.message, 'error');
+        }
+    }
+    
+    async function syncConfig() {
+        try {
+            const res = await api('POST', '/sync');
+            if (res.success) {
+                showToast('Config synced! Version: ' + res.configVersion, 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                throw new Error(res.error);
+            }
+        } catch (err) {
+            showToast('Sync failed: ' + err.message, 'error');
+        }
+    }
+
+    async function disconnect() {
+        if (!confirm('Are you sure you want to disconnect from the platform?')) return;
+        
+        try {
+            const res = await api('POST', '/disconnect');
+            if (res.success) {
+                window.location.href = '/setup';
+            } else {
+                throw new Error(res.error);
+            }
+        } catch (err) {
+            showToast('Disconnect failed: ' + err.message, 'error');
+        }
+    }
+
+    // MagicNetwork functions
+    async function refreshMagicNetworkStatus() {
+        try {
+            const mn = await api('GET', '/magicnetwork/status');
+            
+            // Update installed status
+            document.getElementById('mn-installed').textContent = mn.installed ? 'Yes' : 'No (installing...)';
+            
+            // Update status badge
+            const badge = document.getElementById('mn-status-badge');
+            if (!mn.installed) {
+                badge.textContent = 'Installing';
+                badge.className = 'px-2 py-1 bg-yellow-600/20 text-yellow-400 text-xs rounded-full';
+            } else if (!mn.configured) {
+                badge.textContent = 'Not Setup';
+                badge.className = 'px-2 py-1 bg-gray-600/20 text-gray-400 text-xs rounded-full';
+            } else if (mn.connected) {
+                badge.textContent = 'Connected';
+                badge.className = 'px-2 py-1 bg-green-600/20 text-green-400 text-xs rounded-full';
+            } else if (mn.interface_up) {
+                badge.textContent = 'Waiting';
+                badge.className = 'px-2 py-1 bg-yellow-600/20 text-yellow-400 text-xs rounded-full';
+            } else {
+                badge.textContent = 'Disconnected';
+                badge.className = 'px-2 py-1 bg-red-600/20 text-red-400 text-xs rounded-full';
+            }
+            
+            // Update details
+            document.getElementById('mn-assigned-ip').textContent = mn.assigned_ip || '-';
+            document.getElementById('mn-server-ip').textContent = mn.server_ip || '-';
+            
+            if (mn.last_handshake && mn.last_handshake !== '0001-01-01T00:00:00Z') {
+                const ago = Math.round((Date.now() - new Date(mn.last_handshake).getTime()) / 1000);
+                if (ago < 60) {
+                    document.getElementById('mn-last-handshake').textContent = ago + 's ago';
+                } else if (ago < 3600) {
+                    document.getElementById('mn-last-handshake').textContent = Math.round(ago / 60) + 'm ago';
+                } else {
+                    document.getElementById('mn-last-handshake').textContent = Math.round(ago / 3600) + 'h ago';
+                }
+            } else {
+                document.getElementById('mn-last-handshake').textContent = '-';
+            }
+            
+            if (mn.transfer_rx || mn.transfer_tx) {
+                document.getElementById('mn-transfer').textContent = 
+                    '↓ ' + formatBytes(mn.transfer_rx || 0) + ' / ↑ ' + formatBytes(mn.transfer_tx || 0);
+            }
+            
+            // Show appropriate buttons
+            const setupForm = document.getElementById('mn-setup-form');
+            const controls = document.getElementById('mn-controls');
+            const sshInfo = document.getElementById('mn-ssh-info');
+            
+            if (!mn.configured && mn.installed) {
+                setupForm.classList.remove('hidden');
+                controls.classList.add('hidden');
+                sshInfo.classList.add('hidden');
+            } else if (mn.configured) {
+                setupForm.classList.add('hidden');
+                controls.classList.remove('hidden');
+                
+                if (mn.connected && mn.assigned_ip) {
+                    const ip = mn.assigned_ip.split('/')[0];
+                    document.getElementById('ssh-command').textContent = `ssh user@${ip}`;
+                    sshInfo.classList.remove('hidden');
+                } else {
+                    sshInfo.classList.add('hidden');
+                }
+            } else {
+                setupForm.classList.add('hidden');
+                controls.classList.add('hidden');
+                sshInfo.classList.add('hidden');
+            }
+            
+        } catch (err) {
+            console.error('MagicNetwork status refresh failed:', err);
+        }
+    }
+    
+    async function setupMagicNetwork() {
+        const apiUrl = document.getElementById('mn-api-url').value.trim();
+        const apiKey = document.getElementById('mn-api-key').value.trim();
+        const endpoint = document.getElementById('mn-endpoint').value.trim();
+        
+        if (!apiUrl || !apiKey || !endpoint) {
+            showToast('Please fill in all fields', 'error');
+            return;
+        }
+        
+        if (!confirm('Setup MagicNetwork VPN tunnel?\n\nThis will:\n• Generate encryption keys\n• Register with MagicNetwork server\n• Connect to VPN\n• Enable SSH access from central')) return;
+        
+        try {
+            showToast('Setting up MagicNetwork...', 'info');
+            const res = await api('POST', '/magicnetwork/setup', {
+                magicNetworkUrl: apiUrl,
+                magicNetworkApiKey: apiKey,
+                serverEndpoint: endpoint
+            });
+            if (res.status === 'ok') {
+                showToast('MagicNetwork tunnel established! IP: ' + res.assigned_ip, 'success');
+                refreshMagicNetworkStatus();
+            } else {
+                throw new Error(res.error || 'Setup failed');
+            }
+        } catch (err) {
+            showToast('MagicNetwork setup failed: ' + err.message, 'error');
+        }
+    }
+    
+    async function magicNetworkUp() {
+        try {
+            const res = await api('POST', '/magicnetwork/up');
+            if (res.status === 'ok') {
+                showToast('MagicNetwork connected', 'success');
+                refreshMagicNetworkStatus();
+            } else {
+                throw new Error(res.error);
+            }
+        } catch (err) {
+            showToast('Failed to connect: ' + err.message, 'error');
+        }
+    }
+    
+    async function magicNetworkDown() {
+        try {
+            const res = await api('POST', '/magicnetwork/down');
+            if (res.status === 'ok') {
+                showToast('MagicNetwork disconnected', 'success');
+                refreshMagicNetworkStatus();
+            } else {
+                throw new Error(res.error);
+            }
+        } catch (err) {
+            showToast('Failed to disconnect: ' + err.message, 'error');
+        }
+    }
+
+    // Network configuration
+    let networkMode = 'direct'; // 'direct' or 'magicnetwork'
+    
+    function setNetworkMode(mode) {
+        networkMode = mode;
+        
+        // Update button styles
+        document.querySelectorAll('.network-mode-btn').forEach(btn => {
+            btn.classList.remove('bg-iris-600', 'text-white');
+            btn.classList.add('bg-gray-700', 'text-gray-300');
+        });
+        
+        if (mode === 'direct') {
+            document.getElementById('mode-direct').classList.remove('bg-gray-700', 'text-gray-300');
+            document.getElementById('mode-direct').classList.add('bg-iris-600', 'text-white');
+            document.getElementById('config-direct').classList.remove('hidden');
+            document.getElementById('config-magicnetwork').classList.add('hidden');
+        } else {
+            document.getElementById('mode-magicnetwork').classList.remove('bg-gray-700', 'text-gray-300');
+            document.getElementById('mode-magicnetwork').classList.add('bg-iris-600', 'text-white');
+            document.getElementById('config-direct').classList.add('hidden');
+            document.getElementById('config-magicnetwork').classList.remove('hidden');
+        }
+    }
+    
+    async function saveNetworkConfig() {
+        if (networkMode === 'direct') {
+            const serverIP = document.getElementById('server-ip').value.trim();
+            if (!serverIP) {
+                showToast('Please enter a server IP address', 'error');
+                return;
+            }
+            
+            try {
+                const res = await api('PUT', '/config/network', {
+                    mode: 'direct',
+                    serverIP: serverIP
+                });
+                if (res.success) {
+                    showToast('Network configuration saved', 'success');
+                } else {
+                    throw new Error(res.error || 'Failed to save');
+                }
+            } catch (err) {
+                showToast('Failed to save: ' + err.message, 'error');
+            }
+        }
+    }
+    
+    // Initialize network mode based on MagicNetwork configuration
+    async function initializeNetworkMode() {
+        try {
+            const mn = await api('GET', '/magicnetwork/status');
+            if (mn.configured) {
+                setNetworkMode('magicnetwork');
+            } else {
+                setNetworkMode('direct');
+            }
+        } catch (err) {
+            console.error('Failed to check MagicNetwork status:', err);
+            setNetworkMode('direct');
+        }
+    }
+    
+    // Start periodic refresh
+    refreshNATSStats(); // Initial load
+    refreshMagicNetworkStatus(); // Initial MagicNetwork status
+    initializeNetworkMode(); // Set network mode based on configuration
+    setInterval(refreshStatus, 10000);
+    setInterval(refreshNATSStats, 2000); // More frequent for live stats
+    setInterval(refreshMagicNetworkStatus, 5000); // Check MagicNetwork status
+</script>
+</body>
+</html>
+{{end}}
+

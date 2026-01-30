@@ -23,9 +23,9 @@ export function ANPRDashboard() {
     watchlisted: '',
   });
 
-  const fetchVehicles = async () => {
+  const fetchVehicles = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       setError(null);
       const result = await apiClient.getVehicles({
         plateNumber: searchQuery || undefined,
@@ -48,6 +48,14 @@ export function ANPRDashboard() {
 
   useEffect(() => {
     fetchVehicles();
+  }, [activeTab, filters, searchQuery]);
+
+  // Auto-refresh every 5 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchVehicles(true);
+    }, 5000);
+    return () => clearInterval(interval);
   }, [activeTab, filters, searchQuery]);
 
   const getVehicleTypeColor = (type: VehicleType) => {
@@ -197,7 +205,7 @@ export function ANPRDashboard() {
           <VehicleDetail
             vehicle={selectedVehicle}
             onClose={() => setSelectedVehicle(null)}
-            onUpdate={fetchVehicles}
+            onUpdate={() => fetchVehicles()}
           />
         ) : (
           <Card className="glass h-full flex items-center justify-center">

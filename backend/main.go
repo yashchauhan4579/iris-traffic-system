@@ -140,12 +140,18 @@ func main() {
 		})
 	})
 
+	// Seed admin user
+	handlers.SeedAdminUser()
+
 	// WebSocket route for camera feeds (outside /api group)
 	router.GET("/ws/feeds", handlers.HandleFeedWebSocket)
 
 	// API Routes
 	api := router.Group("/api")
 	{
+		// Auth routes
+		api.POST("/login", handlers.Login)
+
 		// Feed hub stats
 		api.GET("/feeds/stats", handlers.GetFeedHubStats)
 

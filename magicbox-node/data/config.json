@@ -1,0 +1,26 @@
+{
+  "nodeName": "subhash-dev",
+  "nodeModel": "Generic Linux",
+  "mac": "7c:1e:52:32:f8:2a",
+  "state": "unconfigured",
+  "platform": {
+    "serverUrl": ""
+  },
+  "wireguard": {
+    "enabled": true,
+    "privateKey": "kF4o0axR7sCn+IsPEBmnaxjKyAXqY7Gwtz8wHvXaU3E=",
+    "publicKey": "s6TrOtyyWanr5anEY5ORZ03El0kJDX1ALCQbF1ZDfVE=",
+    "assignedIp": "10.10.0.3/24",
+    "serverPubKey": "R2MRuguYR4SQB4v4WcmrkN56Ioz8Acj2xjBhVlZ/pVk=",
+    "serverEndpoint": "64.176.97.241:51820",
+    "serverIp": "10.10.0.1",
+    "configured": true,
+    "magicNetworkUrl": "http://64.176.97.241:8080",
+    "magicNetworkApiKey": "mn_9cad5a43dddad0afbcafd2a23965432d348d338d5397a97be9fbe719d0a6ffa6"
+  },
+  "cameras": [],
+  "configVersion": 0,
+  "lastSync": "0001-01-01T00:00:00Z",
+  "createdAt": "2025-12-27T14:09:27.676436027Z",
+  "updatedAt": "2025-12-27T14:09:47.956266419Z"
+}

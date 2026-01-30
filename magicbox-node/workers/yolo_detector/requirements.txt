@@ -1,0 +1,17 @@
+# YOLOv8 Detector Worker Dependencies
+
+# Base worker dependencies
+nats-py>=2.6.0
+aiohttp>=3.9.0
+numpy>=1.24.0
+
+# OpenCV for image processing
+opencv-python>=4.8.0
+
+# YOLOv8 (Ultralytics)
+ultralytics>=8.0.0
+
+# Optional: GPU support (uncomment if CUDA available)
+# torch>=2.0.0
+# torchvision>=0.15.0
+

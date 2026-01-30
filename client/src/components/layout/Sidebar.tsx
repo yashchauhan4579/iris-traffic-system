@@ -1,6 +1,7 @@
-import { Camera, Map, BarChart3, Settings, Bell, Users, Sun, Moon, AlertTriangle, Car, TrendingUp, Home, Server } from 'lucide-react';
+import { Camera, Map, BarChart3, Settings, Bell, Users, Sun, Moon, AlertTriangle, Car, TrendingUp, Home, Server, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface SidebarProps {
   activeView: string;
@@ -81,6 +82,7 @@ function getColorClass(color: string, type: 'bg' | 'shadow') {
 
 export function Sidebar({ activeView, onViewChange }: SidebarProps) {
   const { theme, toggleTheme } = useTheme();
+  const { logout } = useAuth();
 
   const activeModule = getActiveModule(activeView);
   const currentGroup = activeModule ? moduleGroups[activeModule as keyof typeof moduleGroups] : null;
@@ -144,6 +146,15 @@ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
         ) : (
           <Sun className="w-5 h-5 text-yellow-400" />
         )}
+      </button>
+
+      {/* Logout Button */}
+      <button
+        onClick={logout}
+        className="w-14 h-14 rounded-xl flex items-center justify-center transition-all duration-200 hover:bg-red-500/10 active:scale-95 mb-2 group"
+        title="Sign Out"
+      >
+        <LogOut className="w-5 h-5 text-gray-500 group-hover:text-red-500 transition-colors" />
       </button>
 
       {/* User Avatar */}

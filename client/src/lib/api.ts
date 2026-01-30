@@ -1,6 +1,6 @@
 // API Client - Updated 2025-12-26
 // Use relative path for API calls - Vite will proxy /api to backend
-const API_BASE_URL = '';
+const API_BASE_URL = import.meta.env.VITE_API_Base_URL || '';
 
 // Re-export worker types from separate file
 export type {
@@ -40,6 +40,20 @@ export interface Device {
     data: Record<string, any>;
     timestamp: string;
   };
+}
+
+export interface AuthResponse {
+  token: string;
+  user: {
+    id: number;
+    username: string;
+    role: string;
+  };
+}
+
+export interface LoginRequest {
+  username: string;
+  password: string;
 }
 
 // Minimal device interface for map view (reduces payload size)
@@ -126,24 +140,71 @@ import type {
 
 class ApiClient {
   private baseUrl: string;
+  private token: string | null = localStorage.getItem('token');
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
+  }
+
+  setToken(token: string | null) {
+    this.token = token;
+    if (token) {
+      localStorage.setItem('token', token);
+    } else {
+      localStorage.removeItem('token');
+    }
+  }
+
+  async login(data: LoginRequest): Promise<AuthResponse> {
+    const response = await fetch(`${this.baseUrl}/api/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      let errorMessage = 'Login failed';
+      try {
+        const error = await response.json();
+        errorMessage = error.error || errorMessage;
+      } catch {
+        const text = await response.text();
+        if (text) errorMessage = text;
+        else errorMessage = `Login failed (${response.status})`;
+      }
+      throw new Error(errorMessage);
+    }
+
+    const res = await response.json();
+    this.setToken(res.token);
+    return res;
   }
 
   private async request<T>(
     endpoint: string,
     options?: RequestInit
   ): Promise<T> {
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+      ...options?.headers,
+    };
+
+    if (this.token) {
+      // @ts-ignore
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
       ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers,
-      },
+      headers,
     });
 
     if (!response.ok) {
+      if (response.status === 401) {
+        // Automatically logout on 401? For now just throw
+        this.setToken(null);
+        window.location.href = '/login';
+      }
       throw new Error(`API Error: ${response.statusText}`);
     }
 
@@ -450,11 +511,13 @@ class ApiClient {
     startTime?: string;
     endTime?: string;
     groupBy?: 'minute' | 'hour' | 'day' | 'week' | 'month';
+    location?: string;
   }): Promise<VCCStats> {
     const params = new URLSearchParams();
     if (options?.startTime) params.append('startTime', options.startTime);
     if (options?.endTime) params.append('endTime', options.endTime);
     if (options?.groupBy) params.append('groupBy', options.groupBy);
+    if (options?.location) params.append('location', options.location);
     const query = params.toString();
     return this.request<VCCStats>(`/api/vcc/stats${query ? `?${query}` : ''}`);
   }
@@ -751,7 +814,19 @@ export interface VCCStats {
   totalDetections: number;
   uniqueVehicles: number;
   byVehicleType: Record<string, number>;
-  byTime: Array<{ hour?: string; day?: string; week?: string; month?: string; count: number }>;
+  byTime: Array<{
+    hour?: string;
+    day?: string;
+    week?: string;
+    month?: string;
+    count: number;
+    "2W"?: number;
+    "4W"?: number;
+    "AUTO"?: number;
+    "BUS"?: number;
+    "TRUCK"?: number;
+    "HMV"?: number;
+  }>;
   byDevice: Array<{
     deviceId: string;
     deviceName: string;
@@ -778,7 +853,19 @@ export interface VCCDeviceStats {
   totalDetections: number;
   uniqueVehicles: number;
   byVehicleType: Record<string, number>;
-  byTime: Array<{ hour?: string; day?: string; week?: string; month?: string; count: number }>;
+  byTime: Array<{
+    hour?: string;
+    day?: string;
+    week?: string;
+    month?: string;
+    count: number;
+    "2W"?: number;
+    "4W"?: number;
+    "AUTO"?: number;
+    "BUS"?: number;
+    "TRUCK"?: number;
+    "HMV"?: number;
+  }>;
   byHour: Record<string, number>;
   byDayOfWeek: Record<string, number>;
   peakHour: number;

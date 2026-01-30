@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { apiClient, type VCCStats, type VCCRealtime, type VCCDeviceStats } from '@/lib/api';
-import { TrendingUp, Car, Clock, BarChart3, Loader2, RefreshCw, Activity } from 'lucide-react';
+import { TrendingUp, Car, Clock, BarChart3, Loader2, RefreshCw, Activity, ArrowLeft } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -12,6 +13,8 @@ import { VCCInsights } from '@/components/vcc/VCCInsights';
 import { VCCHeatmap } from '@/components/vcc/VCCHeatmap';
 import { VCCDevicesView } from '@/components/vcc/VCCDevicesView';
 import { VCCReportModal } from '@/components/vcc/VCCReportModal';
+import { LocationSelector } from '@/components/vcc/LocationSelector';
+import { useMemo } from 'react';
 
 export function VCCDashboard() {
   const [stats, setStats] = useState<VCCStats | null>(null);
@@ -24,7 +27,50 @@ export function VCCDashboard() {
 
   // Camera filter state
   const [cameras, setCameras] = useState<CameraOption[]>([]);
-  const [selectedCamera, setSelectedCamera] = useState<string | null>(null);
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedCamera = searchParams.get('camera');
+
+  const setSelectedCamera = (cameraId: string | null) => {
+    setSearchParams(prev => {
+      const newParams = new URLSearchParams(prev);
+      if (cameraId) {
+        newParams.set('camera', cameraId);
+      } else {
+        newParams.delete('camera');
+      }
+      return newParams;
+    });
+  };
+
+  const selectedLocation = searchParams.get('location');
+  const setSelectedLocation = (location: string | null) => {
+    setSearchParams(prev => {
+      const newParams = new URLSearchParams(prev);
+      if (location) {
+        newParams.set('location', location);
+        newParams.delete('camera'); // Clear camera when location changes
+      } else {
+        newParams.delete('location');
+      }
+      return newParams;
+    });
+  };
+
+  // Derive unique locations
+  const locations = useMemo(() => {
+    const locs = new Set<string>();
+    cameras.forEach(c => {
+      if (c.metadata?.location) locs.add(c.metadata.location);
+    });
+    return Array.from(locs);
+  }, [cameras]);
+
+  // Filter cameras by location
+  const filteredCameras = useMemo(() => {
+    if (!selectedLocation) return cameras;
+    return cameras.filter(c => c.metadata?.location === selectedLocation);
+  }, [cameras, selectedLocation]);
 
   // Initialize with last 7 days
   const [dateRange, setDateRange] = useState<DateTimeRange>(() => {
@@ -75,7 +121,7 @@ export function VCCDashboard() {
     }
   };
 
-  const fetchTodayStats = async () => {
+  const fetchTodayStats = async (silent = false) => {
     try {
       const start = new Date();
       start.setHours(0, 0, 0, 0); // Start of today
@@ -93,6 +139,7 @@ export function VCCDashboard() {
           startTime: start.toISOString(),
           endTime: end.toISOString(),
           groupBy: 'hour',
+          location: selectedLocation || undefined,
         });
         setTodayStats(data);
       }
@@ -101,9 +148,9 @@ export function VCCDashboard() {
     }
   };
 
-  const fetchStats = async () => {
+  const fetchStats = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
 
       if (selectedCamera) {
         // Fetch per-camera stats
@@ -113,16 +160,17 @@ export function VCCDashboard() {
           groupBy: groupBy,
         });
         setDeviceStats(data);
-        setStats(null);
+        setStats(null); // Clear global stats only after new data is ready
       } else {
         // Fetch all cameras stats
         const data = await apiClient.getVCCStats({
           startTime: dateRange.startDate.toISOString(),
           endTime: dateRange.endDate.toISOString(),
           groupBy: groupBy,
+          location: selectedLocation || undefined,
         });
         setStats(data);
-        setDeviceStats(null);
+        setDeviceStats(null); // Clear device stats only after new data is ready
       }
     } catch (err) {
       console.error('Failed to fetch VCC stats:', err);
@@ -151,10 +199,12 @@ export function VCCDashboard() {
 
     const interval = setInterval(() => {
       fetchRealtime();
-    }, 30000);
+      fetchStats(true);
+      fetchTodayStats(true);
+    }, 5000);
 
     return () => clearInterval(interval);
-  }, [dateRange, groupBy, selectedCamera]);
+  }, [dateRange, groupBy, selectedCamera, selectedLocation]);
 
   // Auto-adjust groupBy based on date range
   useEffect(() => {
@@ -171,13 +221,7 @@ export function VCCDashboard() {
     }
   }, [dateRange]);
 
-  // Separate effect to refresh realtime independently
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchRealtime();
-    }, 30000);
-    return () => clearInterval(interval);
-  }, []);
+
 
   const getVehicleTypeColor = (type: string) => {
     const colors: Record<string, string> = {
@@ -205,22 +249,44 @@ export function VCCDashboard() {
     return labels[type] || type;
   };
 
-  if (loading && !stats) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-500 mx-auto mb-2" />
-          <p className="text-gray-500 dark:text-gray-400">Loading VCC statistics...</p>
-        </div>
-      </div>
-    );
-  }
+  // Removed the full page loading check to prevent hard refresh effect. 
+  // We will show the dashboard with a loading indicator if needed, or just let 'loading' prop handle inner component states.
 
   return (
     <div className="h-full overflow-y-auto p-4 space-y-3 bg-background/50">
       <div className="flex items-center justify-between pb-2 pt-2">
-        <div>
-          <h1 className="text-xl font-semibold">Vehicle Classification & Counting</h1>
+        <div className="flex items-center gap-2">
+          {selectedCamera && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 mr-1"
+              onClick={() => setSelectedCamera(null)}
+              title="Back to All Cameras"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+          )}
+          <div className="flex flex-col">
+            <h1 className="text-xl font-semibold">Vehicle Classification & Counting</h1>
+            {selectedCamera && (() => {
+              const cam = cameras.find(c => c.id === selectedCamera);
+              if (cam) {
+                return (
+                  <div className="text-sm text-muted-foreground flex items-center gap-2">
+                    <span className="font-medium">{cam.name.replace(/^Camera\s+/i, "")}</span>
+                    {cam.metadata?.location && (
+                      <>
+                        <span className="w-1 h-1 rounded-full bg-gray-400" />
+                        <span>{cam.metadata.location}</span>
+                      </>
+                    )}
+                  </div>
+                );
+              }
+              return null;
+            })()}
+          </div>
         </div>
         <div className="flex items-center gap-2">
           {stats && (
@@ -234,8 +300,15 @@ export function VCCDashboard() {
               Report
             </Button>
           )}
+          {!selectedCamera && (
+            <LocationSelector
+              locations={locations}
+              selectedLocation={selectedLocation}
+              onSelect={setSelectedLocation}
+            />
+          )}
           <CameraSelector
-            cameras={cameras}
+            cameras={filteredCameras}
             selectedCamera={selectedCamera}
             onSelect={setSelectedCamera}
             loading={loading}
@@ -251,45 +324,52 @@ export function VCCDashboard() {
               <TabsTrigger value="day" className="text-xs px-2">Day</TabsTrigger>
             </TabsList>
           </Tabs>
-          <Button variant="outline" size="sm" onClick={fetchStats} className="h-8 px-2">
+          <Button variant="outline" size="sm" onClick={() => fetchStats()} className="h-8 px-2">
             <RefreshCw className="w-3 h-3" />
           </Button>
         </div>
       </div>
 
       {/* Insights Section */}
-      <VCCInsights stats={deviceStats || stats} loading={loading} cameras={cameras} />
+      <VCCInsights
+        stats={deviceStats || stats}
+        loading={loading}
+        cameras={cameras}
+        isSingleCamera={!!selectedCamera}
+      />
 
-      {/* Real-time Stats - Compact */}
-      <Card className="glass p-3 border-blue-500/20">
-        <div className="flex items-center gap-2 mb-2">
-          <Activity className="w-4 h-4 text-blue-500" />
-          <h2 className="text-sm font-semibold">Real-time (Last 5 Minutes)</h2>
-          {realtimeLoading && <Loader2 className="w-3 h-3 animate-spin" />}
-        </div>
-        {realtime ? (
-          <div className="grid grid-cols-4 gap-3">
-            <div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">Detections</div>
-              <div className="text-xl font-semibold">{realtime.totalDetections}</div>
-            </div>
-            <div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">Per Minute</div>
-              <div className="text-xl font-semibold">{realtime.perMinute.toFixed(1)}</div>
-            </div>
-            <div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">Active Devices</div>
-              <div className="text-xl font-semibold">{realtime.byDevice?.length || 0}</div>
-            </div>
-            <div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">Vehicle Types</div>
-              <div className="text-xl font-semibold">{Object.keys(realtime.byVehicleType || {}).length}</div>
-            </div>
+      {/* Real-time Stats - Compact (Only for Global View) */}
+      {!selectedCamera && (
+        <Card className="glass p-3 border-blue-500/20">
+          <div className="flex items-center gap-2 mb-2">
+            <Activity className="w-4 h-4 text-blue-500" />
+            <h2 className="text-sm font-semibold">Real-time (Last 5 Minutes)</h2>
+            {realtimeLoading && <Loader2 className="w-3 h-3 animate-spin" />}
           </div>
-        ) : (
-          <div className="text-sm text-gray-500 dark:text-gray-400">Loading realtime data...</div>
-        )}
-      </Card>
+          {realtime ? (
+            <div className="grid grid-cols-4 gap-3">
+              <div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">Detections</div>
+                <div className="text-xl font-semibold">{realtime.totalDetections}</div>
+              </div>
+              <div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">Per Minute</div>
+                <div className="text-xl font-semibold">{realtime.perMinute.toFixed(1)}</div>
+              </div>
+              <div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">Active Devices</div>
+                <div className="text-xl font-semibold">{realtime.byDevice?.length || 0}</div>
+              </div>
+              <div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">Vehicle Types</div>
+                <div className="text-xl font-semibold">{Object.keys(realtime.byVehicleType || {}).length}</div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-sm text-gray-500 dark:text-gray-400">Loading realtime data...</div>
+          )}
+        </Card>
+      )}
 
       {/* Main Stats Cards */}
       {
@@ -405,11 +485,16 @@ export function VCCDashboard() {
                                 {points.map((p, index) => {
                                   const rawLabel = p.item.hour || p.item.day || p.item.week || p.item.month || '';
                                   let label = rawLabel;
+                                  let fullLabel = rawLabel;
                                   try {
-                                    if (rawLabel.includes('-')) {
-                                      const date = new Date(rawLabel);
-                                      if (!isNaN(date.getTime())) {
+                                    const date = new Date(rawLabel);
+                                    if (!isNaN(date.getTime())) {
+                                      if (p.item.hour) {
+                                        label = date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+                                        fullLabel = `${date.toLocaleDateString()} ${label}`;
+                                      } else {
                                         label = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                                        fullLabel = date.toLocaleDateString();
                                       }
                                     }
                                   } catch (e) { }
@@ -424,7 +509,7 @@ export function VCCDashboard() {
                                       <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none">
                                         <div className="bg-black/90 text-white text-xs p-2 rounded shadow-lg">
                                           <div className="font-bold">{p.count.toLocaleString()} vehicles</div>
-                                          <div className="text-gray-400">{rawLabel}</div>
+                                          <div className="text-gray-400">{fullLabel}</div>
                                         </div>
                                         <div className="w-2 h-2 bg-black/90 rotate-45 mx-auto -mt-1"></div>
                                       </div>
@@ -446,9 +531,19 @@ export function VCCDashboard() {
                   <Card className="glass p-4">
                     <h2 className="text-lg font-semibold mb-4">Today's Activity</h2>
                     {(() => {
-                      const hourlyData = todayStats?.byHour || {};
+                      const byTime = todayStats?.byTime || [];
+                      const hourlyData: Record<string, number> = {};
+                      byTime.forEach((item: any) => {
+                        const dateStr = (item.hour || item.time_period);
+                        const d = new Date(dateStr.endsWith('Z') ? dateStr : dateStr + 'Z');
+
+                        if (!isNaN(d.getTime())) {
+                          const hour = d.getHours().toString();
+                          hourlyData[hour] = (hourlyData[hour] || 0) + (Number(item.count) || 0);
+                        }
+                      });
                       const currentHour = new Date().getHours();
-                      return Object.keys(hourlyData).length > 0 ? (
+                      return byTime.length > 0 ? (
                         <div className="h-64 flex gap-1">
                           {Array.from({ length: 24 }, (_, hour) => {
                             const isFuture = hour > currentHour;
@@ -581,6 +676,7 @@ export function VCCDashboard() {
         onOpenChange={setShowReportModal}
         cameras={cameras}
         initialDateRange={dateRange}
+        selectedCamera={selectedCamera}
       />
     </div>
   );

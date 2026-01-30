@@ -8,9 +8,10 @@ interface VCCInsightsProps {
     stats: VCCStats | VCCDeviceStats | null;
     loading?: boolean;
     cameras?: CameraOption[];
+    isSingleCamera?: boolean;
 }
 
-export function VCCInsights({ stats, loading, cameras }: VCCInsightsProps) {
+export function VCCInsights({ stats, loading, cameras, isSingleCamera }: VCCInsightsProps) {
     if (loading || !stats) {
         return null;
     }
@@ -88,7 +89,7 @@ export function VCCInsights({ stats, loading, cameras }: VCCInsightsProps) {
     const total = safeStats.totalDetections || 0;
 
     const insights = [
-        ...(topDevice ? [{
+        ...(!isSingleCamera && topDevice ? [{
             title: 'Busiest Camera',
             value: topDeviceName,
             subtext: (
@@ -103,8 +104,8 @@ export function VCCInsights({ stats, loading, cameras }: VCCInsightsProps) {
         }] : []),
         {
             title: 'Peak Traffic',
-            value: `${peakTime.hour}:00`,
-            subtext: `On ${peakTime.day}`,
+            value: peakTime.hour !== undefined ? `${peakTime.hour}:00` : 'N/A',
+            subtext: peakTime.day ? `On ${peakTime.day}` : null,
             icon: Clock,
             color: 'text-blue-500',
             bgColor: 'bg-blue-500/10'

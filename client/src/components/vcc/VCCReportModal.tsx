@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Loader2, FileDown, RefreshCw, FileSpreadsheet } from 'lucide-react';
@@ -15,11 +15,12 @@ interface VCCReportModalProps {
     onOpenChange: (open: boolean) => void;
     cameras: CameraOption[];
     initialDateRange: { startDate: Date; endDate: Date };
+    selectedCamera?: string | null;
 }
 
-export function VCCReportModal({ open, onOpenChange, cameras, initialDateRange }: VCCReportModalProps) {
+export function VCCReportModal({ open, onOpenChange, cameras, initialDateRange, selectedCamera: propSelectedCamera }: VCCReportModalProps) {
     const [dateRange, setDateRange] = useState(initialDateRange);
-    const [selectedCamera, setSelectedCamera] = useState<string | null>(null);
+    const [selectedCamera, setSelectedCamera] = useState<string | null>(propSelectedCamera || null);
     const [stats, setStats] = useState<VCCStats | VCCDeviceStats | null>(null);
     const [events, setEvents] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
@@ -32,8 +33,9 @@ export function VCCReportModal({ open, onOpenChange, cameras, initialDateRange }
             setStats(null);
             setEvents([]);
             setDateRange(initialDateRange);
+            setSelectedCamera(propSelectedCamera || null);
         }
-    }, [open, initialDateRange]);
+    }, [open, initialDateRange, propSelectedCamera]);
 
     const handleGenerate = async () => {
         try {
@@ -98,10 +100,9 @@ export function VCCReportModal({ open, onOpenChange, cameras, initialDateRange }
                 return {
                     'Timestamp': format(new Date(event.timestamp), 'yyyy-MM-dd HH:mm:ss'),
                     'Vehicle Type': event.vehicleType,
-                    'Confidence': event.confidence ? (event.confidence * 100).toFixed(1) + '%' : 'N/A',
                     'Camera Name': cameraName,
                     'Location': location,
-                    'Direction': event.direction || 'N/A'
+                    'Direction': event.direction || 'Right' // Default to Right if missing matching backend default explanation
                 };
             });
 
@@ -117,7 +118,14 @@ export function VCCReportModal({ open, onOpenChange, cameras, initialDateRange }
             worksheet['!cols'] = maxWidths;
 
             // Trigger download
-            const fileName = `iris_vcc_events_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.xlsx`;
+            let fileName = `iris_vcc_events_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.xlsx`;
+
+            if (selectedCamera) {
+                const camName = cameras.find(c => c.id === selectedCamera)?.name || selectedCamera;
+                const safeName = camName.replace(/^Camera\s+/i, "").replace(/\s+/g, '_');
+                fileName = `iris_vcc_events_${safeName}_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.xlsx`;
+            }
+
             XLSX.writeFile(workbook, fileName);
 
         } catch (error) {
@@ -176,37 +184,70 @@ export function VCCReportModal({ open, onOpenChange, cameras, initialDateRange }
                     ) : (
                         <div className="flex gap-2 w-full sm:w-auto justify-end">
                             <Button variant="ghost" onClick={() => setReady(false)}>Modify Filters</Button>
-                            <Button variant="outline" onClick={handleDownloadExcel} disabled={excelLoading}>
+                            <Button className="bg-white text-black hover:bg-zinc-200" onClick={handleDownloadExcel} disabled={excelLoading}>
                                 {excelLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <FileSpreadsheet className="w-4 h-4 mr-2" />}
                                 Download Excel
                             </Button>
                             {stats && (
-                                <PDFDownloadLink
-                                    key={Date.now()}
-                                    document={
-                                        <VCCReportPDF
-                                            stats={stats}
-                                            startDate={dateRange.startDate}
-                                            endDate={dateRange.endDate}
-                                            selectedCameraName={selectedCamera ? cameras.find(c => c.id === selectedCamera)?.name : undefined}
-                                            cameras={cameras}
-                                        />
-                                    }
-                                    fileName={`iris_atcc_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.pdf`}
-                                    className="w-full sm:w-auto"
-                                >
-                                    {({ loading: pdfLoading }) => (
-                                        <Button className="w-full sm:w-auto" disabled={pdfLoading}>
-                                            <FileDown className="w-4 h-4 mr-2" />
-                                            {pdfLoading ? 'Building PDF...' : 'Download PDF Report'}
-                                        </Button>
-                                    )}
-                                </PDFDownloadLink>
+                                <PDFDownloadButton
+                                    stats={stats}
+                                    dateRange={dateRange}
+                                    cameras={cameras}
+                                    selectedCamera={selectedCamera}
+                                />
                             )}
                         </div>
                     )}
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+    );
+}
+
+// Extracted component to isolate PDF generation and state
+function PDFDownloadButton({ stats, dateRange, cameras, selectedCamera }: {
+    stats: VCCStats | VCCDeviceStats,
+    dateRange: { startDate: Date, endDate: Date },
+    cameras: CameraOption[],
+    selectedCamera: string | null
+}) {
+    // Memoize the document to prevent regeneration on every render
+    const doc = useMemo(() => (
+        <VCCReportPDF
+            stats={stats}
+            startDate={dateRange.startDate}
+            endDate={dateRange.endDate}
+            selectedCameraName={selectedCamera ? cameras.find(c => c.id === selectedCamera)?.name : undefined}
+            cameras={cameras}
+        />
+    ), [stats, dateRange, selectedCamera, cameras]);
+
+    // Stable filename
+    const fileName = useMemo(() => {
+        const baseName = 'iris_atcc';
+        const dateStr = format(new Date(), 'yyyy-MM-dd');
+
+        if (selectedCamera) {
+            const camName = cameras.find(c => c.id === selectedCamera)?.name || selectedCamera;
+            const safeName = camName.replace(/^Camera\s+/i, "").replace(/\s+/g, '_');
+            return `${baseName}_${safeName}_${dateStr}.pdf`;
+        }
+
+        return `${baseName}_${dateStr}.pdf`;
+    }, [selectedCamera, cameras]);
+
+    return (
+        <PDFDownloadLink
+            document={doc}
+            fileName={fileName}
+            className="w-full sm:w-auto"
+        >
+            {({ loading: pdfLoading }) => (
+                <Button className="w-full sm:w-auto bg-white text-black hover:bg-zinc-200" disabled={pdfLoading}>
+                    <FileDown className="w-4 h-4 mr-2" />
+                    {pdfLoading ? 'Building PDF...' : 'Download PDF Report'}
+                </Button>
+            )}
+        </PDFDownloadLink>
     );
 }

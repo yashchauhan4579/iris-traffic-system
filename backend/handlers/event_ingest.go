@@ -504,6 +504,7 @@ func processANPREvent(event IngestEvent, imageURLs map[string]string) error {
 	plateNumber, _ := data["plate_number"].(string)
 	plateConfidence, _ := data["plate_confidence"].(float64)
 	vehicleTypeStr, _ := data["vehicle_type"].(string)
+	vehicleTypeStr = strings.ToUpper(strings.TrimSpace(vehicleTypeStr))
 	make, _ := data["make"].(string)
 	model, _ := data["model"].(string)
 	color, _ := data["color"].(string)
@@ -511,15 +512,15 @@ func processANPREvent(event IngestEvent, imageURLs map[string]string) error {
 	// Determine vehicle type
 	vehicleType := models.VehicleTypeUnknown
 	switch vehicleTypeStr {
-	case "2W":
+	case "2W", "bike":
 		vehicleType = models.VehicleType2Wheeler
-	case "4W":
+	case "4W", "car":
 		vehicleType = models.VehicleType4Wheeler
-	case "AUTO":
+	case "AUTO", "auto":
 		vehicleType = models.VehicleTypeAuto
-	case "TRUCK":
-		vehicleType = models.VehicleTypeTruck
-	case "BUS":
+	case "TRUCK", "HMV", "HEAVY", "heavy", "truck":
+		vehicleType = models.VehicleTypeHMV
+	case "BUS", "bus":
 		vehicleType = models.VehicleTypeBus
 	}
 
@@ -674,19 +675,20 @@ func processVCCEvent(event IngestEvent, imageURLs map[string]string) error {
 	data := event.Data
 	
 	vehicleTypeStr, _ := data["vehicle_type"].(string)
+	vehicleTypeStr = strings.ToUpper(strings.TrimSpace(vehicleTypeStr))
 	confidence, _ := data["confidence"].(float64)
 	
 	vehicleType := models.VehicleTypeUnknown
 	switch vehicleTypeStr {
-	case "2W":
+	case "2W", "bike":
 		vehicleType = models.VehicleType2Wheeler
-	case "4W":
+	case "4W", "car":
 		vehicleType = models.VehicleType4Wheeler
-	case "AUTO":
+	case "AUTO", "auto":
 		vehicleType = models.VehicleTypeAuto
-	case "TRUCK":
-		vehicleType = models.VehicleTypeTruck
-	case "BUS":
+	case "TRUCK", "HMV", "HEAVY", "heavy", "truck":
+		vehicleType = models.VehicleTypeHMV
+	case "BUS", "bus":
 		vehicleType = models.VehicleTypeBus
 	}
 
@@ -696,6 +698,40 @@ func processVCCEvent(event IngestEvent, imageURLs map[string]string) error {
 		VehicleType: vehicleType,
 		Metadata:    models.NewJSONB(data),
 	}
+
+	// Handle direction based on 'wrong' flag
+	// Default to "Right" unless explicitly marked wrong
+	if isWrong, ok := data["wrong"].(bool); ok {
+		direction := "Right"
+		if isWrong {
+			direction = "Wrong"
+		}
+		detection.Direction = &direction
+	} else {
+		// If 'wrong' key is strictly required to determine direction, we might want to check for it.
+		// For now, assuming if it's missing, we leave direction as nil or handle it elsewhere?
+		// User said: "for all the correct events put right for the events with wrong dierction put wrong"
+		// implying a binary state. Let's assume if not specified, it's Right? 
+		// Or maybe valid VCC events should have this flag. 
+		// Let's set it to "Right" by default if the flag implies correctness behavior, 
+		// but maybe safer to only set if the key exists or logic implies it.
+		// Re-reading: "make sure to accept wrong: true/false in the events"
+		// If user sends wrong: false, it is Correct -> Right.
+		// If user sends wrong: true, it is Wrong -> Wrong.
+		// If user DOES NOT send it? Let's treat as Right for backward compatibility or nil?
+		// Let's stick to reading the boolean.
+		// Actually, let's enforce: if data has "wrong", use it.
+	}
+    
+    // Explicitly check for 'wrong' key to be safe, but given the prompt "put right for the correct events",
+    // let's just default to Right if not Wrong?
+    // Let's use the extracted bool.
+    wrong, _ := data["wrong"].(bool)
+    dir := "Right"
+    if wrong {
+        dir = "Wrong"
+    }
+    detection.Direction = &dir
 
 	if confidence > 0 {
 		detection.Confidence = &confidence

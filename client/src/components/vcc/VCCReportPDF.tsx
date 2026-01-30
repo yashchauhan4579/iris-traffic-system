@@ -223,9 +223,11 @@ export function VCCReportPDF({ stats, startDate, endDate, selectedCameraName, ca
                                 ? ((count / safeStats.totalDetections) * 100).toFixed(1) + '%'
                                 : '0%';
 
+                            const displayLabel = type === 'HMV' ? 'Heavy Vehicles' : type;
+
                             return (
                                 <View key={type} style={styles.tableRow}>
-                                    <View style={[styles.tableCol, { width: '40%' }]}><Text style={styles.tableCell}>{type}</Text></View>
+                                    <View style={[styles.tableCol, { width: '40%' }]}><Text style={styles.tableCell}>{displayLabel}</Text></View>
                                     <View style={[styles.tableCol, { width: '30%' }]}><Text style={styles.tableCellRight}>{count.toLocaleString()}</Text></View>
                                     <View style={[styles.tableCol, { width: '30%' }]}><Text style={styles.tableCellRight}>{percentage}</Text></View>
                                 </View>
@@ -235,7 +237,7 @@ export function VCCReportPDF({ stats, startDate, endDate, selectedCameraName, ca
                 </View>
 
                 {/* Active Devices Table (Only for All Cameras view) */}
-                {topDevices.length > 0 && (
+                {!isPerDevice && topDevices.length > 0 && (
                     <View style={styles.section}>
                         <Text style={styles.sectionTitle} break>Active Devices</Text>
                         <View style={styles.table}>
@@ -275,6 +277,82 @@ export function VCCReportPDF({ stats, startDate, endDate, selectedCameraName, ca
                                     })}
                                 </View>
                             ))}
+                        </View>
+                    </View>
+                )}
+
+                {/* Time Analysis Table (For both Single and Global views now) */}
+                {safeStats.byTime && safeStats.byTime.length > 0 && (
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle} break>Traffic Analysis by Time</Text>
+                        <View style={styles.table}>
+                            {/* Table Header */}
+                            <View style={[styles.tableRow, styles.tableHeader]} fixed>
+                                <View style={[styles.tableCol, { width: '25%' }]}>
+                                    <Text style={styles.tableCellHeader}>Time Interval</Text>
+                                </View>
+                                <View style={[styles.tableCol, { width: '15%' }]}>
+                                    <Text style={styles.tableCellHeaderRight}>Total</Text>
+                                </View>
+                                {displayTypes.map(type => (
+                                    <View key={type} style={[styles.tableCol, { width: '12%' }]}>
+                                        <Text style={styles.tableCellHeaderRight}>{type === 'HMV' ? 'HMV/Truck' : type}</Text>
+                                    </View>
+                                ))}
+                            </View>
+
+                            {/* Data Rows */}
+                            {safeStats.byTime.map((item: any, index: number) => {
+                                // Format time label - if it's hour based (standard), format specifically, else use raw
+                                let label = item.hour || item.time_period || '';
+                                if (label && !isNaN(new Date(label).getTime())) {
+                                    // Try to detect if it's just an hour or full date
+                                    const d = new Date(label);
+                                    if (label.includes('T') || label.includes(':')) {
+                                        // Likely H or Min, show time part if it's hourly or minute
+                                        // For PDF clarity, if grouping is day, shows date. If hour, shows HH:00
+                                        // The backend returns formatted string in time_period usually "YYYY-MM-DD HH:00"
+                                        // Let's just output it, or cleaner format if possible.
+                                        // Given backend returns TO_CHAR format, it's safer to use as is, or split.
+                                        label = label.split(' ')[1] || label; // Show just time part if date matches report date? 
+                                        // Actually safer to show the label provided by backend if readable, or simplified.
+                                        // In backend we used YYYY-MM-DD HH24:00. Let's just show HH:00 for compactness if date is redundant.
+                                        // If report spans multiple days, date is needed.
+                                        // Let's stick to simple logic:
+                                        label = item.time_period;
+                                    }
+                                }
+
+                                return (
+                                    <View key={index} style={styles.tableRow}>
+                                        <View style={[styles.tableCol, { width: '25%' }]}>
+                                            <Text style={styles.tableCell}>{label}</Text>
+                                        </View>
+                                        <View style={[styles.tableCol, { width: '15%' }]}>
+                                            <Text style={styles.tableCellRight}>{Number(item.count).toLocaleString()}</Text>
+                                        </View>
+                                        {displayTypes.map(type => {
+                                            // Handle mapping: 'HMV' in display covers 'TRUCK' + 'HMV' from backend potentially?
+                                            // Backend returns separate fields: 2W, 4W, AUTO, BUS, TRUCK, HMV.
+                                            // Display types: 2W, 4W, AUTO, BUS, HMV.
+                                            // We should combine TRUCK + HMV into HMV column for display if that's the standard.
+                                            // Let's check backend response. Backend gives direct keys "2W", "4W", etc.
+                                            let val = 0;
+                                            if (type === 'HMV') {
+                                                val = (Number(item['TRUCK']) || 0) + (Number(item['HMV']) || 0);
+                                            } else {
+                                                val = Number(item[type]) || 0;
+                                            }
+
+                                            return (
+                                                <View key={type} style={[styles.tableCol, { width: '12%' }]}>
+                                                    <Text style={styles.tableCellRight}>{val.toLocaleString()}</Text>
+                                                </View>
+                                            );
+                                        })}
+                                    </View>
+                                );
+                            })}
                         </View>
                     </View>
                 )}

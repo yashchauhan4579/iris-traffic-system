@@ -432,6 +432,7 @@ const (
 	VehicleTypeAuto     VehicleType = "AUTO"
 	VehicleTypeTruck    VehicleType = "TRUCK"
 	VehicleTypeBus      VehicleType = "BUS"
+	VehicleTypeHMV      VehicleType = "HMV"
 	VehicleTypeUnknown  VehicleType = "UNKNOWN"
 )
 

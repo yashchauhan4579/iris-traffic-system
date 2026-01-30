@@ -47,7 +47,7 @@ export function VCCHeatmap({ stats, loading }: VCCHeatmapProps) {
 
             if (isNaN(d.getTime())) return;
 
-            const dateKey = d.toISOString().split('T')[0];
+            const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
             const displayLabel = new Intl.DateTimeFormat('en-GB', {
                 day: '2-digit', month: '2-digit', year: 'numeric'
             }).format(d).replace(/\//g, '.'); // DD.MM.YYYY
@@ -74,13 +74,20 @@ export function VCCHeatmap({ stats, loading }: VCCHeatmapProps) {
         // Populate data
         stats.byTime.forEach((item: any) => {
             let d: Date;
-            if (item.hour) d = new Date(item.hour);
-            else if (item.time_period) d = new Date(item.time_period);
-            else return;
+            if (item.hour) {
+                // Backend sends "2024-01-01 10:00:00", treat as UTC
+                const s = item.hour;
+                d = new Date(s.endsWith('Z') ? s : s + 'Z');
+            } else if (item.time_period) {
+                const s = item.time_period;
+                d = new Date(s.endsWith('Z') ? s : s + 'Z');
+            } else return;
 
             if (isNaN(d.getTime())) return;
-            const dateKey = d.toISOString().split('T')[0];
+            // Use local date components for the bucket key
+            const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
             const label = dateMap.get(dateKey);
+            // Use local hour
             const hour = d.getHours().toString();
             const count = Number(item.count) || 0;
 

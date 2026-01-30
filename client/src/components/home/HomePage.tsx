@@ -3,12 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import {
   Map, Camera, Users, Car, TrendingUp, AlertTriangle,
   BarChart3, Bell, Settings, Monitor, Shield,
-  Video, Activity, FileText, Cog, ChevronLeft, ChevronRight, Server
+  Video, Activity, FileText, Cog, ChevronLeft, ChevronRight, Server, LogOut
 } from 'lucide-react';
 import { TypeAnimation } from 'react-type-animation';
 import { Background3D } from './Background3D';
 import { IRISEye3D } from './IRISEye3D';
 import { apiClient } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface SubMenuItem {
   id: string;
@@ -103,6 +104,7 @@ const mainModules: MainModule[] = [
 
 export function HomePage() {
   const navigate = useNavigate();
+  const { logout } = useAuth();
   const [selectedModule, setSelectedModule] = useState<MainModule | null>(null);
   const [hoveredModule, setHoveredModule] = useState<string | null>(null);
   const [hoveredSubItem, setHoveredSubItem] = useState<string | null>(null);
@@ -766,6 +768,41 @@ export function HomePage() {
         </span>
         <span style={{ marginLeft: 8 }}>to go back</span>
       </div>
+
+      {/* Logout Button */}
+      <button
+        onClick={logout}
+        style={{
+          position: 'absolute',
+          top: 24,
+          right: 24,
+          zIndex: 50,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          padding: '8px 16px',
+          borderRadius: 12,
+          backgroundColor: 'rgba(15, 23, 42, 0.6)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          color: '#9ca3af',
+          cursor: 'pointer',
+          backdropFilter: 'blur(10px)',
+          transition: 'all 0.2s',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.2)';
+          e.currentTarget.style.color = '#ef4444';
+          e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = 'rgba(15, 23, 42, 0.6)';
+          e.currentTarget.style.color = '#9ca3af';
+          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+        }}
+      >
+        <LogOut size={16} />
+        <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.05em' }}>LOGOUT</span>
+      </button>
     </div>
   );
 }

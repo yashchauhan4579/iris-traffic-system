@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/irisdrone/backend/models"
 	"gorm.io/driver/postgres"
@@ -28,6 +29,18 @@ func Connect() error {
 	if err != nil {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
+
+	// Configure connection pool
+	sqlDB, err := DB.DB()
+	if err != nil {
+		return fmt.Errorf("failed to get sql.DB: %w", err)
+	}
+	
+	// Increase max number of open connections from default (0=unlimited) to a safe limit, or as requested 'increase'.
+	// Since user asked to increase, we set a high robust limit.
+	sqlDB.SetMaxOpenConns(100) 
+	sqlDB.SetMaxIdleConns(10)
+	sqlDB.SetConnMaxLifetime(time.Hour)
 
 	log.Println("✅ Database connected successfully")
 
@@ -54,6 +67,7 @@ func autoMigrate() error {
 		&models.Vehicle{},
 		&models.VehicleDetection{},
 		&models.Watchlist{},
+		&models.User{},
 	)
 }
 
