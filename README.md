@@ -78,7 +78,7 @@ iris/
 
 1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/Nikhilkaushik23/ATCC.git
+    git clone https://github.com/yashchauhan4579/iris-traffic-system.git
     cd iris
     ```
 
